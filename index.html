@@ -205,74 +205,120 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.setHeaderColor('#111827');
+        
         const myUniqueId = "user_" + Math.floor(Math.random() * 1000000);
-        const user = tg.initDataUnsafe?.user || { id: 12345, first_name: "TestUser", username: "test_user" };
+        // "Guest" fallback agar Telegramsiz ochilsa
+        const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest", username: "guest" };
+        
         document.getElementById('user-name').innerText = user.first_name;
         document.getElementById('avatar-initial').innerText = user.first_name.charAt(0);
 
-        // --- REAL STREAK CALCULATION LOGIC ---
-        async function checkAndSaveUser() {
-            const userRef = db.collection('users').doc(user.id.toString());
-            const todayStr = new Date().toDateString(); // "Mon Feb 02 2026"
-            
+        // 3. HEARTBEAT & ONLINE STATUS (FIX)
+        let heartbeatInterval = null;
+        let onlineDocId = null; 
+
+        async function goOnline() {
+            if(onlineDocId) return;
             try {
-                const doc = await userRef.get();
-                let streak = 1;
-
-                if (doc.exists) {
-                    const data = doc.data();
-                    const lastDate = data.lastLoginDate;
-                    
-                    if (lastDate === todayStr) {
-                        streak = data.streak || 1; // Bugun kirgan, o'zgarmaydi
-                    } else {
-                        const yesterday = new Date();
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        if (lastDate === yesterday.toDateString()) {
-                            streak = (data.streak || 0) + 1; // Kecha kirgan, +1
-                        } else {
-                            streak = 1; // Uzilib qolgan, reset
-                        }
-                    }
-                }
-
-                // Bazaga saqlash
-                await userRef.set({
-                    id: user.id,
+                // Online bo'lganda 'lastActive' vaqtini ham yozamiz
+                const doc = await db.collection('online_users').add({
                     name: user.first_name,
-                    username: user.username || "",
-                    streak: streak,
-                    lastLoginDate: todayStr,
-                    lastActive: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-
-                // UI ni yangilash
-                document.getElementById('user-streak-display').innerText = streak;
-
-            } catch (error) {
-                console.error("Streak Error:", error);
-            }
+                    peerId: myUniqueId,
+                    userId: user.id, 
+                    lastActive: Date.now(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                onlineDocId = doc.id;
+                startHeartbeat(); // Yurak urishini boshlaymiz
+            } catch(e) { console.error(e); }
         }
 
-        // 3. CUE CARDS
-        const cueCards = [
-            { topic: "Describe a book you recently read", points: ["What kind of book it is", "What it is about", "Why you decided to read it"] },
-            { topic: "Describe a holiday destination", points: ["Where it is", "How you would travel there", "What you would do there"] },
-            { topic: "Describe a person who inspires you", points: ["Who this person is", "How you know them", "Why they inspire you"] },
-            { topic: "Describe a skill you want to learn", points: ["What the skill is", "Why you want to learn it", "How you would learn it"] }
-        ];
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            // Har 30 soniyada serverga signal
+            heartbeatInterval = setInterval(() => {
+                if(onlineDocId) {
+                    db.collection('online_users').doc(onlineDocId).update({
+                        lastActive: Date.now()
+                    }).catch(e => console.log("Heartbeat err", e));
+                }
+            }, 30000);
+        }
 
-        // 4. GLOBAL VARIABLES
+        // --- GLOBAL VARIABLES ---
         let peer = null;
         let myStream = null;
         let currentCall = null;
         let waitingDocId = null; 
-        let onlineDocId = null;  
         let directCallDocId = null; 
         let callStartTime = null;
         let callTimerInterval = null;
-        let connectedPartnerName = "Unknown User";
+        let connectedPartnerName = "User";
 
+        // --- LOAD ONLINE USERS (TOZALOVCHI BILAN) ---
+        function loadOnlineUsers() {
+            const container = document.getElementById('users-list');
+            container.innerHTML = '<div style="text-align:center; color:gray">Yuklanmoqda...</div>';
+
+            db.collection('online_users').orderBy('lastActive', 'desc').onSnapshot(snapshot => {
+                container.innerHTML = "";
+                const now = Date.now();
+                let activeCount = 0;
+
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    
+                    // 2 DAQIQA (120000ms) QOIDASI:
+                    if (now - d.lastActive > 120000) {
+                        db.collection('online_users').doc(doc.id).delete(); // O'lik userni o'chiramiz
+                        return;
+                    }
+
+                    if(d.peerId !== myUniqueId) {
+                        activeCount++;
+                        const initial = d.name ? d.name.charAt(0).toUpperCase() : "U";
+                        container.innerHTML += `
+                            <div class="user-item">
+                                <div class="u-info">
+                                    <div class="u-avatar">${initial}<div class="online-badge"></div></div>
+                                    <div><div style="font-weight:600;">${d.name}</div><div style="font-size:10px; color:#10B981;">Online</div></div>
+                                </div>
+                                <button class="btn-call-sm" onclick="startDirectCall('${d.peerId}', '${d.name}')"><i class="fas fa-phone-alt"></i></button>
+                            </div>`;
+                    }
+                });
+
+                if(activeCount === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:gray">Hozircha hech kim yo\'q</div>';
+                }
+            });
+        }
+
+        // --- STREAK LOGIC (REAL DATE) ---
+        async function checkAndSaveUser() {
+            const userRef = db.collection('users').doc(user.id.toString());
+            const todayStr = new Date().toDateString();
+            try {
+                const doc = await userRef.get();
+                let streak = 1;
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.lastLoginDate === todayStr) {
+                        streak = data.streak || 1;
+                    } else {
+                        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+                        if (data.lastLoginDate === yesterday.toDateString()) streak = (data.streak || 0) + 1;
+                        else streak = 1;
+                    }
+                }
+                await userRef.set({
+                    id: user.id, name: user.first_name, streak: streak, lastLoginDate: todayStr
+                }, { merge: true });
+                document.getElementById('user-streak-display').innerText = streak;
+            } catch (error) { console.error(error); }
+        }
+
+        // 4. PEERJS & CALL LOGIC
         function initPeer() {
             peer = new Peer(myUniqueId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
             peer.on('call', (call) => {
@@ -286,12 +332,11 @@
             });
         }
 
-        // --- DIRECT CALL ---
         async function startDirectCall(targetPeerId, targetName) {
             const statusText = document.getElementById('call-status-text');
             document.getElementById('call-ui').classList.remove('hidden');
             document.getElementById('partner-name-display').innerText = targetName;
-            statusText.innerText = "Qo'ng'iroq qilinmoqda...";
+            statusText.innerText = "Connecting...";
             try {
                 myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
                 if(!peer) initPeer();
@@ -301,20 +346,18 @@
                 directCallDocId = callDoc.id;
                 callDoc.onSnapshot(snapshot => {
                     const data = snapshot.data();
-                    if(data && data.status === 'accepted') {
-                        statusText.innerText = "Qabul qilindi! Ulanmoqda...";
+                    if(data?.status === 'accepted') {
+                        statusText.innerText = "Accepted! Connecting...";
                         setTimeout(() => {
                             const call = peer.call(targetPeerId, myStream, { metadata: { name: user.first_name } });
                             setupCallUI(call);
                         }, 500);
-                    } else if(data && data.status === 'rejected') {
-                        alert("Rad etildi."); endCall();
-                    }
+                    } else if(data?.status === 'rejected') { alert("Busy or Rejected"); endCall(); }
                 });
-            } catch (err) { alert("Mikrofon xatosi"); endCall(); }
+            } catch (err) { alert("Mic error"); endCall(); }
         }
 
-        // --- INCOMING LISTENER ---
+        // INCOMING LISTENER
         let incomingListener = null;
         function listenForIncomingCalls() {
             if(incomingListener) return;
@@ -323,9 +366,7 @@
                     snapshot.docChanges().forEach(change => {
                         if (change.type === "added") {
                             const data = change.doc.data();
-                            const now = Date.now();
-                            if(data.timestamp && (now - data.timestamp.toMillis() > 30000)) return;
-                            showIncomingCallModal(change.doc.id, data.callerName);
+                            if(Date.now() - data.timestamp?.toMillis() < 30000) showIncomingCallModal(change.doc.id, data.callerName);
                         }
                     });
                 });
@@ -340,34 +381,29 @@
         async function handleIncomingCall(action) {
             document.getElementById('incoming-call-ui').classList.add('hidden');
             if(!currentIncomingDocId) return;
-            if (action === 'accept') {
-                await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: 'accepted' });
-                try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); if(!peer) initPeer(); } catch(e) {}
-            } else {
-                await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: 'rejected' });
-            }
+            await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: action === 'accept' ? 'accepted' : 'rejected' });
+            if(action === 'accept') { try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); if(!peer) initPeer(); } catch(e){} }
             currentIncomingDocId = null;
         }
 
-        // --- RANDOM CALL ---
+        // START RANDOM CALL
         async function startRandomCall() {
             const statusText = document.getElementById('call-status-text');
             document.getElementById('call-ui').classList.remove('hidden');
-            statusText.innerText = "Sherik qidirilmoqda...";
-            try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); if(!peer) initPeer(); } 
-            catch (err) { alert("Ruxsat bering!"); endCall(); return; }
+            statusText.innerText = "Finding partner...";
+            try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); if(!peer) initPeer(); } catch (err) { alert("Mic required"); endCall(); return; }
 
             const waitingRoomRef = db.collection('waiting_room');
             const snapshot = await waitingRoomRef.where('status', '==', 'waiting').limit(10).get();
             let foundPartner = null;
             snapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.peerId !== myUniqueId && (Date.now() - data.createdAt < 60000)) { foundPartner = { id: doc.id, data: data }; }
-                else if ((Date.now() - data.createdAt) >= 60000) { waitingRoomRef.doc(doc.id).delete(); }
+                if (data.peerId !== myUniqueId && (Date.now() - data.createdAt < 60000)) foundPartner = { id: doc.id, data: data };
+                else if (Date.now() - data.createdAt >= 60000) waitingRoomRef.doc(doc.id).delete();
             });
 
             if (foundPartner) {
-                statusText.innerText = "Topildi! Ulanmoqda...";
+                statusText.innerText = "Partner found!";
                 await waitingRoomRef.doc(foundPartner.id).update({ status: 'matched' });
                 connectedPartnerName = foundPartner.data.name || "User";
                 setTimeout(() => {
@@ -375,35 +411,35 @@
                     setupCallUI(call);
                 }, 1000);
             } else {
-                statusText.innerText = "Kutyapmiz...";
-                const doc = await waitingRoomRef.add({ peerId: myUniqueId, name: user.first_name, status: 'waiting', createdAt: Date.now() });
-                waitingDocId = doc.id;
+                statusText.innerText = "Waiting for partner...";
+                waitingDocId = (await waitingRoomRef.add({ peerId: myUniqueId, name: user.first_name, status: 'waiting', createdAt: Date.now() })).id;
             }
         }
 
-        // --- UI & CUE CARD ---
+        // SETUP UI & CUE CARD
+        const cueCards = [
+            { topic: "Describe a book you recently read", points: ["What kind of book it is", "What it is about", "Why you decided to read it"] },
+            { topic: "Describe a holiday destination", points: ["Where it is", "How you would travel there", "What you would do there"] },
+             { topic: "Describe a person who inspires you", points: ["Who this person is", "How you know them", "Why they inspire you"] }
+        ];
+
         function setupCallUI(call) {
             currentCall = call;
             const statusText = document.getElementById('call-status-text');
             const partnerNameDisplay = document.getElementById('partner-name-display');
             const timerEl = document.getElementById('call-timer');
-
-            const randomCard = cueCards[Math.floor(Math.random() * cueCards.length)];
-            document.getElementById('cue-topic').innerText = randomCard.topic;
-            const pointsList = document.getElementById('cue-points');
-            pointsList.innerHTML = "";
-            randomCard.points.forEach(p => pointsList.innerHTML += `<li>${p}</li>`);
+            
+            // Random Cue Card
+            const card = cueCards[Math.floor(Math.random() * cueCards.length)];
+            document.getElementById('cue-topic').innerText = card.topic;
+            document.getElementById('cue-points').innerHTML = card.points.map(p => `<li>${p}</li>`).join('');
 
             call.on('stream', (remoteStream) => {
-                statusText.innerText = "Connected";
-                partnerNameDisplay.innerText = connectedPartnerName;
+                statusText.innerText = "Connected"; partnerNameDisplay.innerText = connectedPartnerName;
                 document.getElementById('remote-audio').srcObject = remoteStream;
-                callStartTime = Date.now();
-                timerEl.classList.remove('hidden');
-                startTimerUI();
+                callStartTime = Date.now(); timerEl.classList.remove('hidden'); startTimerUI();
             });
-            call.on('close', () => endCall());
-            call.on('error', () => endCall());
+            call.on('close', () => endCall()); call.on('error', () => endCall());
         }
 
         function startTimerUI() {
@@ -422,126 +458,74 @@
             if (currentCall) currentCall.close();
             if (myStream) myStream.getTracks().forEach(t => t.stop());
             if (waitingDocId) await db.collection('waiting_room').doc(waitingDocId).delete();
-            if (directCallDocId) directCallDocId = null;
+            
             if (callTimerInterval) clearInterval(callTimerInterval);
             callStartTime = null; waitingDocId = null;
             document.getElementById('call-ui').classList.add('hidden');
-            loadHistory(); 
+            loadHistory();
         }
 
-        // --- GLOBAL ONLINE STATUS ---
-        async function goOnline() {
-            if(onlineDocId) return;
-            try {
-                const doc = await db.collection('online_users').add({ name: user.first_name, peerId: myUniqueId, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-                onlineDocId = doc.id;
-            } catch(e) {}
-        }
-        window.addEventListener("beforeunload", () => { if(onlineDocId) db.collection('online_users').doc(onlineDocId).delete(); });
-
-        // --- DATA LOADERS ---
-        function loadOnlineUsers() {
-            const container = document.getElementById('users-list');
-            container.innerHTML = '<div style="text-align:center; color:gray">Yuklanmoqda...</div>';
-            db.collection('online_users').orderBy('timestamp', 'desc').limit(20).onSnapshot(snapshot => {
-                container.innerHTML = "";
-                if(snapshot.empty) { container.innerHTML = '<div style="text-align:center; padding:20px; color:gray">Hozircha hech kim yo\'q</div>'; return; }
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    if(d.peerId !== myUniqueId) {
-                        const initial = d.name.charAt(0).toUpperCase();
-                        container.innerHTML += `
-                            <div class="user-item">
-                                <div class="u-info"><div class="u-avatar">${initial}<div class="online-badge"></div></div><div style="font-weight:600;">${d.name}</div></div>
-                                <button class="btn-call-sm" onclick="startDirectCall('${d.peerId}', '${d.name}')"><i class="fas fa-phone-alt"></i></button>
-                            </div>`;
-                    }
-                });
-            });
-        }
-
-        // --- REAL LEADERBOARD ---
+        // LOADERS
         async function loadLeaderboard() {
             const c = document.getElementById('rank-list');
-            c.innerHTML = '<div style="text-align:center; color:gray">Yuklanmoqda...</div>';
             try {
-                // 'users' collectiondan streak bo'yicha sortirovka
                 const snap = await db.collection('users').orderBy('streak', 'desc').limit(20).get();
-                
                 c.innerHTML = "";
-                if (snap.empty) { c.innerHTML = '<div style="text-align:center; padding:20px;">Hozircha hech kim yo\'q</div>'; return; }
-
-                let index = 1;
+                let i = 1;
                 snap.forEach(doc => {
                     const d = doc.data();
-                    const rankClass = index === 1 ? 'top-1' : index === 2 ? 'top-2' : index === 3 ? 'top-3' : '';
-                    c.innerHTML += `
-                        <div class="rank-item">
-                            <div class="rank-left">
-                                <div class="rank-num ${rankClass}">${index}</div>
-                                <div>
-                                    <div style="font-weight:600">${d.name}</div>
-                                    <div style="font-size:12px; color:var(--sub)">${d.streak} days streak</div>
-                                </div>
-                            </div>
-                            <div style="font-weight:700; color:var(--primary)">${d.streak} 🔥</div>
-                        </div>`;
-                    index++;
+                    const rClass = i<=3 ? `top-${i}` : '';
+                    c.innerHTML += `<div class="rank-item"><div class="rank-left"><div class="rank-num ${rClass}">${i}</div><div><div style="font-weight:600">${d.name}</div><div style="font-size:12px; color:var(--sub)">${d.streak} days</div></div></div><div style="font-weight:700; color:var(--primary)">${d.streak} 🔥</div></div>`;
+                    i++;
                 });
-            } catch(e) { 
-                console.error(e);
-                c.innerHTML = '<div style="text-align:center; color:orange">Index sozlash kerak (Console ko\'ring)</div>'; 
-            }
+            } catch(e) { c.innerHTML = "Leaderboard index missing"; }
         }
 
         async function loadHistory() {
-            const container = document.getElementById('history-list');
+            const c = document.getElementById('history-list');
             try {
                 const snap = await db.collection('call_history').where('userId', '==', user.id).orderBy('timestamp', 'desc').limit(5).get();
-                container.innerHTML = "";
+                c.innerHTML = "";
                 snap.forEach(doc => {
                     const d = doc.data();
                     const min = String(Math.floor(d.duration / 60)).padStart(2,'0');
                     const sec = String(d.duration % 60).padStart(2,'0');
-                    container.innerHTML += `<div class="history-item"><div class="h-avatar">${d.partnerName.charAt(0)}</div><div style="flex:1"><div style="font-weight:600">${d.partnerName}</div></div><div style="font-weight:bold; color:var(--primary)">${min}:${sec}</div></div>`;
+                    c.innerHTML += `<div class="history-item"><div class="h-avatar">${d.partnerName.charAt(0)}</div><div style="flex:1"><div style="font-weight:600">${d.partnerName}</div></div><div style="font-weight:bold; color:var(--primary)">${min}:${sec}</div></div>`;
                 });
-            } catch(e) {}
+            } catch(e){}
         }
 
-        // --- NAVIGATION ---
         function switchTab(tabName) {
             document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabName + '-page').classList.remove('hidden');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            const index = tabName === 'home' ? 0 : tabName === 'speaking' ? 1 : tabName === 'users' ? 2 : 3;
-            document.querySelectorAll('.nav-item')[index].classList.add('active');
-
+            const idx = tabName === 'home' ? 0 : tabName === 'speaking' ? 1 : tabName === 'users' ? 2 : 3;
+            document.querySelectorAll('.nav-item')[idx].classList.add('active');
+            
             if(tabName === 'users') loadOnlineUsers();
             if(tabName === 'leaderboard') loadLeaderboard();
             if(tabName === 'speaking') loadHistory();
         }
 
-        function toggleMute() { if(myStream) { myStream.getAudioTracks()[0].enabled = !myStream.getAudioTracks()[0].enabled; } }
         function inviteFriends() { tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/spk_tutor_bot`)}&text=${encodeURIComponent("Join me!")}`); }
+        function toggleMute() { if(myStream) myStream.getAudioTracks()[0].enabled = !myStream.getAudioTracks()[0].enabled; }
 
-        // Calendar Render (Simple)
+        // CALENDAR UI
         const grid = document.getElementById('cal-grid');
         const now = new Date();
         document.getElementById('current-month-year').innerText = now.toLocaleString('default', { month: 'long', year: 'numeric' });
-        const days = ['S','M','T','W','T','F','S'];
-        days.forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
+        ['S','M','T','W','T','F','S'].forEach(d => grid.innerHTML += `<div class="day-name">${d}</div>`);
         for(let i=1; i<=31; i++) {
-            let cls = 'day-num';
-            if(i === now.getDate()) cls += ' today';
+            let cls = 'day-num'; if(i === now.getDate()) cls += ' today';
             grid.innerHTML += `<div class="${cls}">${i}</div>`;
         }
 
-        // INIT
+        // INIT SEQUENCE
         setTimeout(() => {
             initPeer();
             listenForIncomingCalls();
-            goOnline();
-            checkAndSaveUser(); // STREAK TEKSHIRISH
+            goOnline();         // Kirganda Online bo'lish
+            checkAndSaveUser(); // Streakni hisoblash
         }, 1000);
 
     </script>
