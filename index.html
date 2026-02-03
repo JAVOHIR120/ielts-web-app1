@@ -213,7 +213,7 @@
         document.getElementById('user-name').innerText = user.first_name;
         document.getElementById('avatar-initial').innerText = user.first_name.charAt(0);
 
-        // 3. HEARTBEAT & ONLINE STATUS (FIX)
+        // 3. HEARTBEAT & ONLINE STATUS (FIXED)
         let heartbeatInterval = null;
         let onlineDocId = null; 
 
@@ -269,8 +269,9 @@
                     const d = doc.data();
                     
                     // 2 DAQIQA (120000ms) QOIDASI:
+                    // Agar user 2 daqiqadan beri jim bo'lsa -> O'chiramiz
                     if (now - d.lastActive > 120000) {
-                        db.collection('online_users').doc(doc.id).delete(); // O'lik userni o'chiramiz
+                        db.collection('online_users').doc(doc.id).delete(); 
                         return;
                     }
 
@@ -420,7 +421,8 @@
         const cueCards = [
             { topic: "Describe a book you recently read", points: ["What kind of book it is", "What it is about", "Why you decided to read it"] },
             { topic: "Describe a holiday destination", points: ["Where it is", "How you would travel there", "What you would do there"] },
-             { topic: "Describe a person who inspires you", points: ["Who this person is", "How you know them", "Why they inspire you"] }
+             { topic: "Describe a person who inspires you", points: ["Who this person is", "How you know them", "Why they inspire you"] },
+             { topic: "Describe a skill you want to learn", points: ["What the skill is", "Why you want to learn it", "How you would learn it"] }
         ];
 
         function setupCallUI(call) {
@@ -520,12 +522,39 @@
             grid.innerHTML += `<div class="${cls}">${i}</div>`;
         }
 
+        // --- ADMIN STATISTIKA (Maxsus) ---
+        const ADMIN_ID = 5883103021; // Sizning ID raqamingiz
+
+        async function showStats() {
+            if (user.id !== ADMIN_ID) return; 
+            try {
+                const usersSnap = await db.collection('users').get();
+                const totalUsers = usersSnap.size;
+                const onlineSnap = await db.collection('online_users').get();
+                const currentOnline = onlineSnap.size;
+                const todayStr = new Date().toDateString();
+                const activeSnap = await db.collection('users').where('lastLoginDate', '==', todayStr).get();
+                const activeToday = activeSnap.size;
+                alert(`📊 STATISTIKA:\n\n👥 Jami userlar: ${totalUsers}\n🟢 Hozir Online: ${currentOnline}\n📅 Bugun kirganlar: ${activeToday}`);
+            } catch (e) { alert("Xatolik: " + e.message); }
+        }
+
         // INIT SEQUENCE
         setTimeout(() => {
             initPeer();
             listenForIncomingCalls();
             goOnline();         // Kirganda Online bo'lish
             checkAndSaveUser(); // Streakni hisoblash
+            
+            // Admin Check
+            if (user.id === ADMIN_ID) {
+                const header = document.querySelector('.profile-header');
+                const btn = document.createElement('button');
+                btn.innerHTML = '<i class="fas fa-chart-pie"></i> Stats';
+                btn.style = "background:#374151; color:white; border:none; padding:8px 12px; border-radius:8px; margin-top:10px; cursor:pointer; font-size:12px; font-weight:600; display:inline-flex; align-items:center; gap:5px;";
+                btn.onclick = showStats;
+                header.appendChild(btn);
+            }
         }, 1000);
 
     </script>
