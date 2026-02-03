@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Speaking Tutor</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --bg: #111827; --card: #1F2937; --primary: #3B82F6; --text: #F3F4F6; --sub: #9CA3AF; --danger: #EF4444; --success: #10B981; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding-bottom: 80px; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .hidden { display: none !important; }
+        .container { padding: 20px; }
+
+        /* ACTIVE CALL OVERLAY */
+        .call-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 24, 39, 0.98); z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .pulse-avatar { width: 120px; height: 120px; background: var(--card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 50px; border: 4px solid var(--primary); color: white; animation: pulse 2s infinite; margin-bottom: 30px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        .call-controls { display: flex; gap: 30px; }
+        .btn-circle { width: 65px; height: 65px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; color: white; transition: transform 0.2s; }
+        .btn-circle:active { transform: scale(0.9); }
+        .btn-end { background: var(--danger); }
+        .btn-mute { background: var(--card); }
+
+        /* INCOMING CALL MODAL (YANGI) */
+        .incoming-modal {
+            position: fixed; top: 20px; left: 5%; width: 90%; 
+            background: rgba(31, 41, 55, 0.95); 
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--primary);
+            border-radius: 16px; padding: 20px; z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; align-items: center;
+            animation: slideDown 0.5s ease-out;
+        }
+        @keyframes slideDown { from { transform: translateY(-100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .incoming-actions { display: flex; gap: 20px; margin-top: 20px; width: 100%; justify-content: center; }
+        .btn-accept { background: var(--success); width: 60px; height: 60px; border-radius: 50%; border: none; color: white; font-size: 24px; cursor: pointer; animation: bounce 1s infinite; }
+        .btn-decline { background: var(--danger); width: 60px; height: 60px; border-radius: 50%; border: none; color: white; font-size: 24px; cursor: pointer; }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        /* UI ELEMENTS */
+        .profile-header { text-align: center; margin-top: 20px; margin-bottom: 30px; }
+        .avatar { width: 80px; height: 80px; background: var(--card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 10px; border: 2px solid var(--primary); position: relative; }
+        .status-dot { position: absolute; bottom: 5px; right: 5px; width: 12px; height: 12px; background: #10B981; border-radius: 50%; border: 2px solid var(--bg); }
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; margin-bottom: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        
+        .user-item { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+        .u-info { display: flex; align-items: center; gap: 15px; }
+        .u-avatar { width: 40px; height: 40px; background: rgba(59,130,246,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-weight: bold; position: relative; }
+        .online-badge { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: var(--success); border-radius: 50%; border: 2px solid var(--card); }
+        .btn-call-sm { width: 40px; height: 40px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: var(--success); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+        .history-item { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; }
+        .h-avatar { width: 40px; height: 40px; background: rgba(59,130,246,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-weight: bold; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card); border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--sub); font-size: 12px; gap: 4px; cursor: pointer; width: 25%; }
+        .nav-item.active { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="incoming-call-ui" class="incoming-modal hidden">
+        <div style="font-size: 14px; color: var(--sub);">Incoming Call...</div>
+        <div id="incoming-caller-name" style="font-size: 22px; font-weight: 700; margin: 10px 0;">User</div>
+        <div class="incoming-actions">
+            <button class="btn-decline" onclick="handleIncomingCall('reject')"><i class="fas fa-times"></i></button>
+            <button class="btn-accept" onclick="handleIncomingCall('accept')"><i class="fas fa-phone"></i></button>
+        </div>
+    </div>
+
+    <div id="call-ui" class="call-overlay hidden">
+        <div class="pulse-avatar"><i class="fas fa-user"></i></div>
+        <div id="call-status-text" style="font-size:18px; font-weight:600; margin-bottom:10px;">Connecting...</div>
+        <div id="partner-name-display" style="font-size:16px; color:var(--primary); margin-bottom:40px;"></div>
+        
+        <div id="call-timer" style="font-size:24px; font-weight:700; color:#10B981; margin-bottom:20px;" class="hidden">00:00</div>
+        
+        <audio id="remote-audio" autoplay playsinline></audio>
+
+        <div class="call-controls">
+            <button class="btn-circle btn-mute" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
+            <button class="btn-circle btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
+        </div>
+    </div>
+
+    <main id="app">
+        <section id="home-page" class="page container">
+            <div class="profile-header">
+                <div class="avatar"><span id="avatar-initial">U</span><div class="status-dot"></div></div>
+                <div class="user-name" id="user-name">User</div>
+                <div style="color:var(--sub); font-size:14px;">Ielts Buddy</div>
+            </div>
+
+            <div style="background:var(--card); border-radius:16px; padding:20px; text-align:center; margin-bottom:20px;">
+                <i class="fas fa-fire" style="font-size:32px; color:orange;"></i>
+                <div style="font-size:36px; font-weight:800;">0</div>
+                <div style="color:var(--sub); font-size:14px;">days streak</div>
+            </div>
+
+            <button class="btn-main btn-outline" onclick="inviteFriends()">
+                <i class="fas fa-user-plus"></i> Invite Friends
+            </button>
+
+            <button class="btn-main" onclick="switchTab('speaking')">
+                <i class="fas fa-microphone"></i> Start Practice Session
+            </button>
+        </section>
+
+        <section id="speaking-page" class="page container hidden">
+            <h2 style="margin-bottom: 5px;">Speaking Practice</h2>
+            <p style="color:var(--sub); margin-bottom: 25px;">Random Matching</p>
+
+            <button class="btn-main" onclick="startRandomCall()">
+                <i class="fas fa-random"></i> Start Random Call
+            </button>
+
+            <h3 style="margin-top: 30px; font-size: 16px;">Recent Calls History</h3>
+            <div id="history-list">
+                <div style="text-align:center; color:gray; font-size:12px;">Yuklanmoqda...</div>
+            </div>
+        </section>
+
+        <section id="users-page" class="page container hidden">
+            <h2 style="margin-bottom: 5px;">Online Users 🟢</h2>
+            <p style="color:var(--sub); margin-bottom: 20px;">Do'stlaringizga to'g'ridan-to'g'ri aloqa</p>
+            
+            <div id="users-list">
+                <div style="text-align:center; color:gray; font-size:12px;">Yuklanmoqda...</div>
+            </div>
+        </section>
+
+        <section id="leaderboard-page" class="page container hidden">
+            <h2>Leaderboard 📊</h2>
+            <div id="rank-list" style="margin-top:20px;">Yuklanmoqda...</div>
+        </section>
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('home')"><i class="fas fa-home"></i><span>Home</span></div>
+        <div class="nav-item" onclick="switchTab('speaking')"><i class="fas fa-headset"></i><span>Speaking</span></div>
+        <div class="nav-item" onclick="switchTab('users')"><i class="fas fa-users"></i><span>Users</span></div>
+        <div class="nav-item" onclick="switchTab('leaderboard')"><i class="fas fa-chart-bar"></i><span>Rank</span></div>
+    </nav>
+
+    <script>
+        // 1. FIREBASE SETUP
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZUD_8sPguwP6r6s-VYjFnsXnSl4b40Og",
+            authDomain: "ielts-bb0f8.firebaseapp.com",
+            projectId: "ielts-bb0f8",
+            storageBucket: "ielts-bb0f8.firebasestorage.app",
+            messagingSenderId: "228697832712",
+            appId: "1:228697832712:web:38a7e6bdfe26849bcf40bd"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 2. TELEGRAM & USER
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.setHeaderColor('#111827');
+        const myUniqueId = "user_" + Math.floor(Math.random() * 1000000);
+        const user = tg.initDataUnsafe?.user || { id: 12345, first_name: "TestUser" };
+        document.getElementById('user-name').innerText = user.first_name;
+        document.getElementById('avatar-initial').innerText = user.first_name.charAt(0);
+
+        function inviteFriends() {
+            const botUsername = "spk_tutor_bot"; 
+            const inviteLink = `https://t.me/${botUsername}`;
+            const shareText = "IELTS Speaking practice! Join me:";
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`);
+        }
+
+        // 3. GLOBAL VARIABLES
+        let peer = null;
+        let myStream = null;
+        let currentCall = null;
+        let waitingDocId = null; // Random uchun
+        let onlineDocId = null;  // Online list uchun
+        let directCallDocId = null; // Direct call uchun
+        
+        let callStartTime = null;
+        let callTimerInterval = null;
+        let connectedPartnerName = "Unknown User";
+
+        // 4. PEERJS INIT
+        function initPeer() {
+            peer = new Peer(myUniqueId, {
+                config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] }
+            });
+
+            // RANDOM yoki DIRECT Call kelganda (Peer orqali)
+            peer.on('call', (call) => {
+                // Bu yerga kelganda demak "Accept" qilingan
+                connectedPartnerName = call.metadata?.name || "User";
+                
+                navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+                    myStream = stream;
+                    call.answer(stream);
+                    document.getElementById('call-ui').classList.remove('hidden');
+                    setupCallUI(call);
+                });
+            });
+        }
+
+        // --- DIRECT CALL: CALLER SIDE (A) ---
+        async function startDirectCall(targetPeerId, targetName) {
+            const statusText = document.getElementById('call-status-text');
+            const partnerNameDisplay = document.getElementById('partner-name-display');
+            
+            // 1. UI ni ochamiz
+            document.getElementById('call-ui').classList.remove('hidden');
+            partnerNameDisplay.innerText = targetName;
+            statusText.innerText = "Qo'ng'iroq qilinmoqda...";
+
+            try {
+                // 2. Mikrofonni yoqamiz
+                myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+                if(!peer) initPeer();
+
+                // 3. Bazaga "Signal" yuboramiz (Invitation)
+                const callDoc = await db.collection('direct_calls').add({
+                    callerId: myUniqueId,
+                    callerName: user.first_name,
+                    receiverId: targetPeerId,
+                    status: 'pending', // Kutyapmiz
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                directCallDocId = callDoc.id;
+
+                // 4. Javobni kutamiz (Listener)
+                callDoc.onSnapshot(snapshot => {
+                    const data = snapshot.data();
+                    if(!data) return;
+
+                    if(data.status === 'accepted') {
+                        statusText.innerText = "Qabul qilindi! Ulanmoqda...";
+                        // 5. PeerJS orqali haqiqiy ulanish
+                        setTimeout(() => {
+                            const call = peer.call(targetPeerId, myStream, {
+                                metadata: { name: user.first_name }
+                            });
+                            setupCallUI(call);
+                        }, 500);
+                    } else if(data.status === 'rejected') {
+                        alert("Foydalanuvchi qo'ng'iroqni rad etdi.");
+                        endCall();
+                    }
+                });
+
+            } catch (err) {
+                alert("Mikrofonga ruxsat bering!");
+                endCall();
+            }
+        }
+
+        // --- DIRECT CALL: RECEIVER SIDE (B) ---
+        // Bu funksiya doimiy tinglab turadi
+        let incomingListener = null;
+        function listenForIncomingCalls() {
+            if(incomingListener) return; // Zotan tinglayapti
+
+            // Menga atalgan (receiverId == men) va 'pending' turgan qo'ng'iroqlar
+            incomingListener = db.collection('direct_calls')
+                .where('receiverId', '==', myUniqueId)
+                .where('status', '==', 'pending')
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === "added") {
+                            const data = change.doc.data();
+                            // 30 sekunddan eski bo'lsa o'tkazib yuboramiz
+                            const now = Date.now();
+                            // Firestore timestamp null bo'lishi mumkin (local write)
+                            if(data.timestamp && (now - data.timestamp.toMillis() > 30000)) return;
+
+                            showIncomingCallModal(change.doc.id, data.callerName);
+                        }
+                    });
+                });
+        }
+
+        let currentIncomingDocId = null;
+        function showIncomingCallModal(docId, callerName) {
+            currentIncomingDocId = docId;
+            document.getElementById('incoming-caller-name').innerText = callerName;
+            document.getElementById('incoming-call-ui').classList.remove('hidden');
+            tg.HapticFeedback.notificationOccurred('warning'); // Telegram titratish
+        }
+
+        async function handleIncomingCall(action) {
+            document.getElementById('incoming-call-ui').classList.add('hidden');
+            
+            if(!currentIncomingDocId) return;
+
+            if (action === 'accept') {
+                // 1. Bazaga "Accepted" deb yozamiz
+                await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: 'accepted' });
+                
+                // 2. Mikrofonni tayyorlaymiz (PeerJS callni kutamiz)
+                try {
+                    myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+                    if(!peer) initPeer();
+                    // PeerJS "call" eventi avtomatik ishlaydi (initPeer ichida)
+                } catch(e) {
+                    alert("Mikrofon xatosi");
+                }
+
+            } else {
+                // Rad etish
+                await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: 'rejected' });
+            }
+            currentIncomingDocId = null;
+        }
+
+        // --- RANDOM CALL (OLDINGI FUNKSIYA) ---
+        async function startRandomCall() {
+            const statusText = document.getElementById('call-status-text');
+            document.getElementById('call-ui').classList.remove('hidden');
+            document.getElementById('partner-name-display').innerText = "";
+            statusText.innerText = "Mikrofon yoqilmoqda...";
+
+            try {
+                myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+                if(!peer) initPeer();
+            } catch (err) {
+                alert("Mikrofonga ruxsat bering!");
+                endCall(); return;
+            }
+
+            statusText.innerText = "Sherik qidirilmoqda...";
+            
+            const waitingRoomRef = db.collection('waiting_room');
+            const snapshot = await waitingRoomRef.where('status', '==', 'waiting').limit(10).get();
+            let foundPartner = null;
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const now = Date.now();
+                if (data.peerId !== myUniqueId && (now - data.createdAt < 60000)) {
+                    foundPartner = { id: doc.id, data: data };
+                } else if ((now - data.createdAt) >= 60000) {
+                    waitingRoomRef.doc(doc.id).delete();
+                }
+            });
+
+            if (foundPartner) {
+                statusText.innerText = "Topildi! Ulanmoqda...";
+                await waitingRoomRef.doc(foundPartner.id).update({ status: 'matched' });
+                connectedPartnerName = foundPartner.data.name || "User";
+                setTimeout(() => {
+                    const call = peer.call(foundPartner.data.peerId, myStream, { metadata: { name: user.first_name } });
+                    setupCallUI(call);
+                }, 1000);
+            } else {
+                statusText.innerText = "Kutyapmiz...";
+                const doc = await waitingRoomRef.add({
+                    peerId: myUniqueId,
+                    name: user.first_name,
+                    status: 'waiting',
+                    createdAt: Date.now()
+                });
+                waitingDocId = doc.id;
+            }
+        }
+
+        // --- COMMON CALL UTILS ---
+        function setupCallUI(call) {
+            currentCall = call;
+            const statusText = document.getElementById('call-status-text');
+            const partnerNameDisplay = document.getElementById('partner-name-display');
+            const timerEl = document.getElementById('call-timer');
+            
+            call.on('stream', (remoteStream) => {
+                statusText.innerText = "Active Call";
+                partnerNameDisplay.innerText = connectedPartnerName;
+                document.getElementById('remote-audio').srcObject = remoteStream;
+                callStartTime = Date.now();
+                timerEl.classList.remove('hidden');
+                startTimerUI();
+            });
+            call.on('close', () => endCall());
+            call.on('error', () => endCall());
+        }
+
+        function startTimerUI() {
+            const timerEl = document.getElementById('call-timer');
+            callTimerInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - callStartTime) / 1000);
+                const min = String(Math.floor(diff / 60)).padStart(2, '0');
+                const sec = String(diff % 60).padStart(2, '0');
+                timerEl.innerText = `${min}:${sec}`;
+            }, 1000);
+        }
+
+        async function endCall() {
+            if (callStartTime) {
+                const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
+                if (durationSec > 2) saveHistoryToFirebase(connectedPartnerName, durationSec);
+            }
+            if (currentCall) currentCall.close();
+            if (myStream) myStream.getTracks().forEach(t => t.stop());
+            if (waitingDocId) await db.collection('waiting_room').doc(waitingDocId).delete();
+            
+            // Direct call tozalanadi
+            if (directCallDocId) directCallDocId = null;
+
+            if (callTimerInterval) clearInterval(callTimerInterval);
+            callStartTime = null;
+            waitingDocId = null;
+            document.getElementById('call-ui').classList.add('hidden');
+            document.getElementById('call-timer').classList.add('hidden');
+            loadHistory(); 
+        }
+
+        async function saveHistoryToFirebase(name, duration) {
+            try {
+                await db.collection('call_history').add({
+                    userId: user.id,
+                    partnerName: name,
+                    duration: duration,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function toggleMute() {
+            if(myStream) {
+                const track = myStream.getAudioTracks()[0];
+                track.enabled = !track.enabled;
+                document.querySelector('.btn-mute i').className = track.enabled ? "fas fa-microphone" : "fas fa-microphone-slash";
+            }
+        }
+
+        // --- NAVIGATION ---
+        async function switchTab(tabName) {
+            document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabName + '-page').classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            const index = tabName === 'home' ? 0 : tabName === 'speaking' ? 1 : tabName === 'users' ? 2 : 3;
+            document.querySelectorAll('.nav-item')[index].classList.add('active');
+
+            if(tabName === 'users') {
+                goOnline();
+                loadOnlineUsers();
+            } else {
+                goOffline();
+            }
+
+            if(tabName === 'leaderboard') loadLeaderboard();
+            if(tabName === 'speaking') loadHistory();
+        }
+
+        // --- ONLINE STATUS ---
+        async function goOnline() {
+            if(onlineDocId) return;
+            try {
+                const doc = await db.collection('online_users').add({
+                    name: user.first_name,
+                    peerId: myUniqueId,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                onlineDocId = doc.id;
+            } catch(e) {}
+        }
+
+        async function goOffline() {
+            if(onlineDocId) {
+                await db.collection('online_users').doc(onlineDocId).delete();
+                onlineDocId = null;
+            }
+        }
+        window.addEventListener("beforeunload", () => {
+            if(onlineDocId) db.collection('online_users').doc(onlineDocId).delete();
+        });
+
+        // --- LOADERS ---
+        function loadOnlineUsers() {
+            const container = document.getElementById('users-list');
+            container.innerHTML = '<div style="text-align:center; color:gray">Yuklanmoqda...</div>';
+
+            db.collection('online_users').orderBy('timestamp', 'desc').limit(20)
+                .onSnapshot(snapshot => {
+                    container.innerHTML = "";
+                    if(snapshot.empty) {
+                        container.innerHTML = '<div style="text-align:center; padding:20px; color:gray">Hozircha hech kim yo\'q</div>';
+                        return;
+                    }
+                    snapshot.forEach(doc => {
+                        const d = doc.data();
+                        if(d.peerId !== myUniqueId) {
+                            const initial = d.name.charAt(0).toUpperCase();
+                            // Button bosilganda DIRECT CALL boshlanadi
+                            const btnHtml = `<button class="btn-call-sm" onclick="startDirectCall('${d.peerId}', '${d.name}')"><i class="fas fa-phone-alt"></i></button>`;
+                            container.innerHTML += `
+                                <div class="user-item">
+                                    <div class="u-info"><div class="u-avatar">${initial}<div class="online-badge"></div></div><div style="font-weight:600;">${d.name}</div></div>
+                                    ${btnHtml}
+                                </div>`;
+                        }
+                    });
+                });
+        }
+
+        async function loadHistory() {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '<div style="text-align:center; padding:10px; color:gray">Yuklanmoqda...</div>';
+            try {
+                const snap = await db.collection('call_history').where('userId', '==', user.id).orderBy('timestamp', 'desc').limit(10).get();
+                if (snap.empty) { container.innerHTML = '<div style="text-align:center; padding:20px; color:gray">Hali suhbatlar yo\'q</div>'; return; }
+                container.innerHTML = "";
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const min = String(Math.floor(d.duration / 60)).padStart(2, '0');
+                    const sec = String(d.duration % 60).padStart(2, '0');
+                    let dateStr = "Hozirgina";
+                    if(d.timestamp) {
+                        const date = d.timestamp.toDate();
+                        dateStr = date.getHours() + ':' + String(date.getMinutes()).padStart(2,'0');
+                    }
+                    const displayName = d.partnerName || "Anonim";
+                    container.innerHTML += `
+                        <div class="history-item">
+                            <div class="h-avatar">${displayName.charAt(0)}</div>
+                            <div style="flex:1"><div style="font-weight:600">${displayName}</div><div style="font-size:12px; color:var(--text-sub)">${dateStr}</div></div>
+                            <div style="font-weight:bold; color:var(--primary)">${min}:${sec}</div>
+                        </div>`;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadLeaderboard() {
+            const c = document.getElementById('rank-list');
+            c.innerHTML = "Yuklanmoqda...";
+            try {
+                const s = await db.collection('leaderboard').orderBy('score', 'desc').limit(10).get();
+                c.innerHTML = "";
+                s.forEach((d, i) => {
+                    c.innerHTML += `<div style="background:var(--card); padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between;"><span>${i+1}. ${d.data().name}</span><b>${Math.floor(d.data().score*10)} msg</b></div>`;
+                });
+            } catch(e) { c.innerHTML = "Xatolik."; }
+        }
+
+        // Ilovani ochganda Incoming Call listenerni yoqamiz
+        setTimeout(() => {
+            initPeer();
+            listenForIncomingCalls();
+        }, 1000);
+
+    </script>
+</body>
+</html>
