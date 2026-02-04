@@ -127,7 +127,7 @@
 
         /* CALENDAR */
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; margin-top: 10px; }
-        .day { padding: 8px; border-radius: 8px; color: rgba(255,255,255,0.5); }
+        .day { padding: 5px; border-radius: 5px; color: rgba(255,255,255,0.5); }
         .day.today { background: var(--primary); color: white; font-weight: bold; box-shadow: 0 0 10px rgba(108, 92, 231, 0.5); }
         
         /* USERS */
@@ -178,20 +178,19 @@
 
     <div id="app">
         <section id="home-page" class="page container">
-            <div style="display:flex; align-items:center; gap:15px; margin:20px 0;">
-                <div style="width:60px; height:60px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px;" id="u-initial">U</div>
-                <div>
-                    <div style="font-size:14px; opacity:0.7">Welcome</div>
-                    <div id="u-name" style="font-size:20px; font-weight:700">Guest</div>
+            <div class="glass-card" style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:50px; height:50px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px;" id="u-initial">U</div>
+                    <div><div style="font-size:12px; opacity:0.7">Hello</div><b id="u-name">Guest</b></div>
                 </div>
             </div>
 
-            <div style="display:flex; gap:10px; margin-bottom:20px;">
-                <div class="glass-card" style="flex:1; text-align:center; margin:0;">
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div class="glass-card" style="flex:1; text-align:center; margin:0; padding:15px;">
                     <div id="streak-disp" style="font-size:24px; font-weight:700;">0</div>
                     <div style="font-size:12px; opacity:0.7;">Streak 🔥</div>
                 </div>
-                <div class="glass-card" style="flex:1; text-align:center; margin:0;">
+                <div class="glass-card" style="flex:1; text-align:center; margin:0; padding:15px;">
                     <div style="font-size:24px; font-weight:700; color:var(--accent);">20+</div>
                     <div style="font-size:12px; opacity:0.7;">Topics 📚</div>
                 </div>
@@ -220,7 +219,7 @@
                         <div class="radar-ring"></div>
                         <div style="font-size:40px;">🌍</div>
                     </div>
-                    <div style="color:var(--accent); margin-bottom:20px;">Searching...</div>
+                    <div id="search-status-text" style="color:var(--accent); margin-bottom:20px;">Searching...</div>
                     <button class="btn-main btn-danger" onclick="cancelSearch()">CANCEL</button>
                 </div>
 
@@ -307,10 +306,11 @@
             });
         }
 
-        // --- MATCHING SYSTEM (FIXED) ---
+        // --- MATCHING SYSTEM ---
         async function startRandomCall() {
             document.getElementById('ui-search-idle').style.display = 'none';
             document.getElementById('ui-search-hidden').style.display = 'block';
+            document.getElementById('search-status-text').innerText = "Searching...";
             
             // 1. CLEANUP OLD ROOMS
             const old = await db.collection('waiting_room').where('time', '<', Date.now() - 60000).get();
@@ -327,21 +327,23 @@
             });
 
             if (match) {
+                document.getElementById('search-status-text').innerText = "Found Partner!";
                 // I AM THE JOINER (CALLER)
                 await room.doc(match.id).update({ status: 'matched' });
                 const call = peer.call(match.peerId, myStream, { metadata: { name: user.first_name } });
                 
                 // Immediately show call screen
-                document.getElementById('ui-search-hidden').style.display = 'none';
-                showCallScreen(match.name);
-                setupStream(call);
+                setTimeout(() => {
+                    document.getElementById('ui-search-hidden').style.display = 'none';
+                    showCallScreen(match.name);
+                    setupStream(call);
+                }, 1000);
                 
             } else {
                 // I AM THE WAITER (LISTENER)
+                document.getElementById('search-status-text').innerText = "Waiting for partner...";
                 const doc = await room.add({ id: myId, peerId: myId, name: user.first_name, status: 'wait', time: Date.now() });
                 waitingId = doc.id;
-                
-                // Wait for incoming call... (UI handled by peer.on('call'))
             }
         }
 
@@ -374,7 +376,6 @@
         // --- DIRECT CALLS & INCOMING ---
         async function startDirect(targetId, name) {
             alert("Calling " + name + "...");
-            
             const doc = await db.collection('calls').add({ from: myId, fromName: user.first_name, to: targetId, status: 'pending', time: Date.now() });
             doc.onSnapshot(s => {
                 if (s.data()?.status === 'accepted') {
@@ -403,14 +404,13 @@
         async function acceptCall() {
             document.getElementById('incoming-modal').classList.add('hidden');
             await db.collection('calls').doc(incId).update({ status: 'accepted' });
-            // Wait for PeerJS to trigger peer.on('call')
         }
         function rejectCall() {
             document.getElementById('incoming-modal').classList.add('hidden');
             if(incId) db.collection('calls').doc(incId).update({ status: 'rejected' });
         }
 
-        // --- CLEANUP ---
+        // --- CLEANUP & HISTORY ---
         function endCall() {
             if (currentCall) currentCall.close();
             if (waitingId) db.collection('waiting_room').doc(waitingId).delete();
@@ -438,9 +438,7 @@
             startTime = Date.now();
             timerInt = setInterval(() => {
                 const d = Math.floor((Date.now() - startTime)/1000);
-                const m = String(Math.floor(d/60)).padStart(2,'0');
-                const s = String(d%60).padStart(2,'0');
-                document.getElementById('call-timer').innerText = `${m}:${s}`;
+                document.getElementById('call-timer').innerText = `${String(Math.floor(d/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`;
             }, 1000);
         }
 
@@ -484,7 +482,6 @@
         }
 
         function loadStats() {
-            // STREAK LOGIC
             const ref = db.collection('users').doc(String(user.id));
             const today = new Date().toDateString();
             ref.get().then(d => {
@@ -492,21 +489,22 @@
                 if(d.exists) { 
                     const v = d.data();
                     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-                    
-                    if(v.last === today) s = v.streak; // Already logged in today
-                    else if(v.last === yesterday.toDateString()) s = v.streak + 1; // Consecutive
-                    else s = 1; // Streak broken
+                    if(v.last === today) s = v.streak; 
+                    else if(v.last === yesterday.toDateString()) s = v.streak + 1; 
+                    else s = 1; 
                 }
                 ref.set({ name: user.first_name, streak: s, last: today }, { merge: true });
                 document.getElementById('streak-disp').innerText = s;
             });
         }
 
-        function loadRank() { /* Same logic */ }
-        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
-        function setupAdmin() { /* Admin Code */ }
+        function loadRank() {
+             db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => {
+                 const r = document.getElementById('rank-list'); r.innerHTML = "";
+                 let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px;margin-bottom:5px;display:flex;justify-content:space-between;"><b style="color:gold">#${i} ${v.name}</b><span>${v.streak} 🔥</span></div>`; i++; });
+             });
+        }
 
-        // --- RENDER CALENDAR ---
         function renderCalendar() {
             const g = document.getElementById('cal-grid'); const n = new Date();
             document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' });
@@ -515,6 +513,15 @@
                 const isToday = i === n.getDate() ? 'today' : '';
                 g.innerHTML += `<div class="day ${isToday}">${i}</div>`; 
             }
+        }
+
+        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
+        
+        function setupAdmin() {
+             const b = document.createElement('button'); b.innerText = "📊 Stats";
+             b.style = "margin-left:10px; background:rgba(255,255,255,0.1); border:none; color:white; padding:5px 10px; border-radius:5px;";
+             b.onclick = async () => { alert(`Users: ${(await db.collection('users').get()).size}\nOnline: ${(await db.collection('online').get()).size}`); };
+             document.querySelector('.glass-card').appendChild(b);
         }
     </script>
 </body>
