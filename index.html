@@ -13,7 +13,110 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* --- GLOBAL STYLES --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+        
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 100%);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #6c5ce7;
+            --accent: #00cec9;
+            --text: #ffffff;
+            --danger: #ff7675;
+            --success: #00b894;
+            --admin: #e17055;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text);
+            font-family: 'Poppins', sans-serif;
+            margin: 0; padding: 0;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+        }
+
+        #app { height: 100%; overflow-y: auto; padding-bottom: 90px; }
+        .hidden { display: none !important; }
+        .container { padding: 20px; max-width: 500px; margin: 0 auto; }
+
+        /* --- UI COMPONENTS --- */
+        .glass-card {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 20px; margin-bottom: 15px; backdrop-filter: blur(10px);
+        }
+
+        .btn-main {
+            background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white; border: none; padding: 16px; width: 100%;
+            border-radius: 16px; font-size: 16px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4); margin-top: 10px;
+        }
+        .btn-main:active { transform: scale(0.98); }
+        .btn-danger { background: var(--danger); box-shadow: 0 5px 15px rgba(255, 118, 117, 0.4); }
+        
+        .btn-glass {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 14px; width: 100%; border-radius: 16px;
+            font-weight: 600; cursor: pointer; margin-top: 10px;
+        }
+
+        /* --- ADMIN STYLES --- */
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .admin-card {
+            background: rgba(225, 112, 85, 0.1); border: 1px solid rgba(225, 112, 85, 0.3);
+            border-radius: 16px; padding: 15px; text-align: center;
+        }
+        .admin-val { font-size: 24px; font-weight: 800; color: var(--admin); }
+        .admin-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; }
+        .admin-btn-group { display: flex; flex-direction: column; gap: 10px; }
+        .btn-admin { background: rgba(225, 112, 85, 0.2); border: 1px solid var(--admin); color: var(--admin); padding: 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
+
+        /* --- SCREENS --- */
+        .full-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 5000; background: #0f0c29;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        /* RADAR */
+        .radar-box { width: 100px; height: 100px; margin: 20px auto; position: relative; display: flex; align-items: center; justify-content: center; }
+        .radar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: radar 2s infinite linear; }
+        .radar-ring:nth-child(2) { animation-delay: 0.5s; }
+        @keyframes radar { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+        /* CALL UI */
+        .call-ui {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #1e272e 0%, #000 100%);
+            z-index: 4000; display: flex; flex-direction: column; padding: 30px 20px;
+        }
+        .cue-box {
+            background: rgba(255,255,255,0.08); border-radius: 20px; padding: 20px;
+            margin: 20px 0; flex-grow: 1; border: 1px solid rgba(255,255,255,0.1); overflow-y: auto;
+        }
+        .cue-title { color: var(--accent); font-size: 20px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+        .cue-list li { margin-bottom: 8px; color: #dfe6e9; line-height: 1.4; }
+
+        /* NAV */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(15, 12, 41, 0.95); padding: 15px 0;
+            display: flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+        .nav-item { color: #636e72; font-size: 22px; transition: 0.2s; position: relative; }
+        .nav-item.active { color: var(--primary); transform: translateY(-3px); }
+        .nav-item.admin-active { color: var(--admin) !important; transform: translateY(-3px); }
+
+        /* CALENDAR */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; margin-top: 10px; }
+        .day { padding: 5px; border-radius: 5px; color: rgba(255,255,255,0.5); }
+        .day.today { background: var(--primary); color: white; font-weight: bold; }
+    </style>
 </head>
 <body>
 
@@ -22,7 +125,7 @@
         <h1>Speaking Tutor</h1>
         <p style="color: #b2bec3; margin-bottom: 30px;">Practice IELTS Speaking.</p>
         <button class="btn-main" style="width:200px" onclick="enterApp()">START</button>
-        <p style="font-size: 10px; color: #555; margin-top: 20px;">v4.5 Premium Admin</p>
+        <p style="font-size: 10px; color: #555; margin-top: 20px;">Final Version</p>
     </div>
 
     <div id="search-overlay" class="full-overlay hidden">
@@ -99,27 +202,33 @@
         </section>
 
         <section id="admin-page" class="page container hidden">
-            <h2 style="color:var(--admin)">Admin Dashboard 🛡️</h2>
+            <h2 style="color:var(--admin)">Admin Control 🛡️</h2>
             <div class="admin-grid">
                 <div class="admin-card">
                     <div class="admin-val" id="adm-total-users">-</div>
-                    <div class="admin-label">Total Users</div>
+                    <div class="admin-label">Users</div>
                 </div>
                 <div class="admin-card">
                     <div class="admin-val" id="adm-online">-</div>
-                    <div class="admin-label">Online Now</div>
-                </div>
-                <div class="admin-card">
-                    <div class="admin-val" id="adm-history">-</div>
-                    <div class="admin-label">Total Calls</div>
+                    <div class="admin-label">Online</div>
                 </div>
                 <div class="admin-card">
                     <div class="admin-val" id="adm-waiting">-</div>
-                    <div class="admin-label">In Waiting Room</div>
+                    <div class="admin-label">Waiting</div>
+                </div>
+                <div class="admin-card">
+                    <div class="admin-val" id="adm-history">-</div>
+                    <div class="admin-label">Calls</div>
                 </div>
             </div>
-            <button class="btn-main btn-danger" onclick="cleanWaitingRoom()">🧹 Clean Waiting Room</button>
-            <p style="font-size:10px; text-align:center; margin-top:20px; opacity:0.5;">System v4.5 | Admin Access Granted</p>
+            
+            <h3 style="font-size:14px; margin-top:20px;">Maintenance Tools</h3>
+            <div class="admin-btn-group">
+                <button class="btn-admin" onclick="loadAdminStats()"><i class="fas fa-sync"></i> Refresh Stats</button>
+                <button class="btn-admin" onclick="cleanWaitingRoom()"><i class="fas fa-broom"></i> Clean Waiting Room (Fix Freeze)</button>
+                <button class="btn-admin" onclick="cleanOnlineList()"><i class="fas fa-users-slash"></i> Clear Old Online Users</button>
+            </div>
+            <p style="font-size:10px; text-align:center; margin-top:20px; opacity:0.5;">Master Admin Access</p>
         </section>
 
     </div>
@@ -133,7 +242,7 @@
     </nav>
 
     <script>
-        // FIREBASE CONFIG
+        // CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBZUD_8sPguwP6r6s-VYjFnsXnSl4b40Og",
             authDomain: "ielts-bb0f8.firebaseapp.com",
@@ -147,17 +256,16 @@
         const tg = window.Telegram.WebApp;
         tg.expand(); tg.setHeaderColor('#0f0c29');
 
-        // GLOBAL VARS
+        // --- GLOBAL VARIABLES ---
         const myId = "u_" + Math.floor(Math.random() * 1000000);
         const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest" };
-        const ADMIN_ID = 5883103021; // Sizning ID
+        const ADMIN_ID = 5883103021; // ADMIN ID
 
         document.getElementById('u-name').innerText = user.first_name;
 
         let peer, myStream, currentCall, waitingId, timerInt, startTime;
         let isMuted = false;
 
-        // TOPICS (20+ Extended)
         const topics = [
             {t:"Describe a book", p:["What book?","Who wrote?","Why like?"]},
             {t:"Describe a holiday", p:["Where?","How?","What did?"]},
@@ -171,18 +279,29 @@
             {t:"Describe a movie", p:["Title?","Plot?","Favorite character?"]}
         ];
 
-        // --- CORE ---
+        // --- STARTUP LOGIC ---
         async function enterApp() {
             try {
+                // Microphone Check for Desktop
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Browser does not support Media Devices (Use HTTPS!)");
+                }
+                
                 myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
                 document.getElementById('start-overlay').classList.add('hidden');
-                initPeer(); loadStats(); renderCalendar(); goOnline(); listenIncoming();
                 
-                // ADMIN CHECK
+                initPeer(); 
+                loadStats(); 
+                renderCalendar(); 
+                goOnline(); 
+                listenIncoming();
+                
                 if (user.id === ADMIN_ID) {
                     document.getElementById('nav-admin').classList.remove('hidden');
                 }
-            } catch (e) { alert("Microphone access required! " + e.message); }
+            } catch (e) { 
+                alert("Microphone Error: " + e.message + "\n\nUse HTTPS or enable mic permissions."); 
+            }
         }
 
         function initPeer() {
@@ -203,7 +322,7 @@
             document.getElementById('search-status').innerText = "Connecting...";
             
             try {
-                // CLEANUP old requests (Admin auto-clean also available)
+                // Auto-cleanup ghosts
                 const old = await db.collection('waiting_room').where('time', '<', Date.now() - 60000).get();
                 old.forEach(d => d.ref.delete());
 
@@ -225,8 +344,10 @@
                     document.getElementById('search-status').innerText = "Waiting for partner...";
                     const doc = await db.collection('waiting_room').add({ peerId: myId, name: user.first_name, time: Date.now() });
                     waitingId = doc.id;
+                    // Cleanup if closes app
+                    window.addEventListener('beforeunload', () => doc.delete());
                 }
-            } catch (e) { alert("DB Error: " + e.message); }
+            } catch (e) { alert("Match Error: " + e.message); }
         }
 
         function cancelSearch() {
@@ -274,7 +395,7 @@
                     const call = peer.call(tid, myStream, { metadata: { name: user.first_name } });
                     setupCall(call, name);
                 } else if(s.data()?.status === 'rejected') {
-                    alert("Declined"); cancelSearch();
+                    alert("User declined."); cancelSearch();
                 }
             });
         }
@@ -305,7 +426,7 @@
             
             if (t === 'admin') {
                 document.getElementById('nav-admin').classList.add('admin-active');
-                loadAdminStats(); // Load Admin Data
+                loadAdminStats();
             } else {
                 event.currentTarget.classList.add('active');
             }
@@ -313,9 +434,8 @@
             if(t==='users') loadUsers(); if(t==='speaking') loadHistory(); if(t==='rank') loadRank();
         }
 
-        // --- ONLINE FIX (NO DUPLICATES) ---
+        // --- NO DUPLICATES ONLINE ---
         function goOnline() {
-            // ID ni hujjat nomi sifatida ishlatamiz (Overwrite qiladi)
             db.collection('online').doc(user.id.toString()).set({
                 name: user.first_name, peerId: myId, last: Date.now()
             }).then(() => {
@@ -339,25 +459,29 @@
         // --- ADMIN LOGIC ---
         async function loadAdminStats() {
             if (user.id !== ADMIN_ID) return;
-            const u = await db.collection('users').get();
-            const o = await db.collection('online').get();
-            const h = await db.collection('history').get();
-            const w = await db.collection('waiting_room').get();
-            
-            document.getElementById('adm-total-users').innerText = u.size;
-            document.getElementById('adm-online').innerText = o.size;
-            document.getElementById('adm-history').innerText = h.size;
-            document.getElementById('adm-waiting').innerText = w.size;
+            document.getElementById('adm-total-users').innerText = (await db.collection('users').get()).size;
+            document.getElementById('adm-online').innerText = (await db.collection('online').get()).size;
+            document.getElementById('adm-waiting').innerText = (await db.collection('waiting_room').get()).size;
+            document.getElementById('adm-history').innerText = (await db.collection('history').get()).size;
         }
 
         async function cleanWaitingRoom() {
+            if(!confirm("Are you sure? This will kick everyone searching.")) return;
             const w = await db.collection('waiting_room').get();
             w.forEach(d => d.ref.delete());
             alert("Waiting Room Cleaned!");
             loadAdminStats();
         }
+        
+        async function cleanOnlineList() {
+             if(!confirm("Clear online list? Users will need to refresh.")) return;
+             const o = await db.collection('online').get();
+             o.forEach(d => d.ref.delete());
+             alert("Online List Cleared!");
+             loadAdminStats();
+        }
 
-        // --- OTHER LOADERS ---
+        // --- LOADERS (STATS, RANK, HISTORY) ---
         function loadStats() {
             const ref = db.collection('users').doc(String(user.id));
             const today = new Date().toDateString();
@@ -372,61 +496,24 @@
                 document.getElementById('streak-disp').innerText = s;
             });
         }
-       function loadHistory() {
-            const h = document.getElementById('history-list');
-            h.innerHTML = '<div style="text-align:center; font-size:12px; opacity:0.5; margin-top:10px;">Loading history...</div>';
-
-            // 1. Asosiy urinish (Vaqt bo'yicha saralab)
-            db.collection('history')
-                .where('user', '==', user.id)
-                .orderBy('time', 'desc') // Agar Index bo'lmasa, shu yerda xato beradi
-                .limit(10)
-                .get()
-                .then(renderHistory)
-                .catch(err => {
-                    console.warn("Index topilmadi, oddiy rejimda yuklanmoqda...", err);
-                    
-                    // 2. Zahira rejimi (Agar Index yo'q bo'lsa, saralamasdan yuklaydi)
-                    db.collection('history')
-                        .where('user', '==', user.id)
-                        .limit(10)
-                        .get()
-                        .then(renderHistory);
+        
+        function loadHistory() {
+            const h = document.getElementById('history-list'); h.innerHTML = '<div style="text-align:center; opacity:0.5;">Loading...</div>';
+            // Safe Load without index
+            db.collection('history').where('user', '==', user.id).limit(10).get().then(s => {
+                h.innerHTML = "";
+                if(s.empty) { h.innerHTML = '<div style="text-align:center; opacity:0.5;">No recent calls</div>'; return; }
+                s.forEach(d => { 
+                    const v = d.data();
+                    const t = new Date(v.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    h.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between; font-size:14px;"><div><b>${v.partner}</b> <span style="font-size:10px; opacity:0.6">${t}</span></div><div>${Math.floor(v.dur/60)}:${String(v.dur%60).padStart(2,'0')}</div></div>`; 
                 });
-        }
-
-        // Tarixni chizib beruvchi yordamchi funksiya
-        function renderHistory(snap) {
-            const h = document.getElementById('history-list');
-            h.innerHTML = "";
-            
-            if (snap.empty) {
-                h.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px;">No recent calls 📭</div>';
-                return;
-            }
-
-            snap.forEach(d => {
-                const v = d.data();
-                // Vaqtni formatlash (soat:daqiqa)
-                const dateObj = v.time ? new Date(v.time) : new Date();
-                const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                // Davomiylik (min:sec)
-                const min = Math.floor(v.dur / 60);
-                const sec = String(v.dur % 60).padStart(2, '0');
-
-                h.innerHTML += `
-                <div class="glass-card" style="padding:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; background:rgba(255,255,255,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px;">👤</div>
-                        <div>
-                            <div style="font-weight:700; font-size:14px;">${v.partner}</div>
-                            <div style="font-size:11px; opacity:0.6;">${timeStr}</div>
-                        </div>
-                    </div>
-                    <div style="font-family:monospace; color:var(--success); font-weight:700; font-size:14px;">
-                        ${min}:${sec}
-                    </div>
-                </div>`;
             });
         }
+
+        function loadRank() { db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => { const r = document.getElementById('rank-list'); r.innerHTML = ""; let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between;"><b style="color:#ffd700">#${i} ${v.name}</b><span>${v.streak} 🔥</span></div>`; i++; }); }); }
+        function renderCalendar() { const g = document.getElementById('cal-grid'); const n = new Date(); document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' }); ['S','M','T','W','T','F','S'].forEach(d => g.innerHTML += `<div>${d}</div>`); for(let i=1; i<=31; i++) { const c = i===n.getDate()?'today':''; g.innerHTML += `<div class="day ${c}">${i}</div>`; } }
+        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
+    </script>
+</body>
+</html>
