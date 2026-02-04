@@ -119,7 +119,9 @@
         <div id="call-status-text" style="font-size:16px; font-weight:600; margin-bottom:5px;">Connected</div>
         <div id="partner-name-display" style="font-size:14px; color:var(--primary); margin-bottom:20px;">Partner</div>
         <div id="call-timer" style="font-size:20px; font-weight:700; color:#10B981;">00:00</div>
+        
         <audio id="remote-audio" autoplay playsinline></audio>
+        
         <div class="call-controls">
             <button class="btn-circle btn-mute" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
             <button class="btn-circle btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
@@ -207,20 +209,18 @@
         tg.setHeaderColor('#111827');
         
         const myUniqueId = "user_" + Math.floor(Math.random() * 1000000);
-        // "Guest" fallback agar Telegramsiz ochilsa
         const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest", username: "guest" };
         
         document.getElementById('user-name').innerText = user.first_name;
         document.getElementById('avatar-initial').innerText = user.first_name.charAt(0);
 
-        // 3. HEARTBEAT & ONLINE STATUS (FIXED)
+        // 3. HEARTBEAT & ONLINE STATUS
         let heartbeatInterval = null;
         let onlineDocId = null; 
 
         async function goOnline() {
             if(onlineDocId) return;
             try {
-                // Online bo'lganda 'lastActive' vaqtini ham yozamiz
                 const doc = await db.collection('online_users').add({
                     name: user.first_name,
                     peerId: myUniqueId,
@@ -229,13 +229,12 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 onlineDocId = doc.id;
-                startHeartbeat(); // Yurak urishini boshlaymiz
+                startHeartbeat();
             } catch(e) { console.error(e); }
         }
 
         function startHeartbeat() {
             if (heartbeatInterval) clearInterval(heartbeatInterval);
-            // Har 30 soniyada serverga signal
             heartbeatInterval = setInterval(() => {
                 if(onlineDocId) {
                     db.collection('online_users').doc(onlineDocId).update({
@@ -255,7 +254,7 @@
         let callTimerInterval = null;
         let connectedPartnerName = "User";
 
-        // --- LOAD ONLINE USERS (TOZALOVCHI BILAN) ---
+        // --- LOAD ONLINE USERS ---
         function loadOnlineUsers() {
             const container = document.getElementById('users-list');
             container.innerHTML = '<div style="text-align:center; color:gray">Yuklanmoqda...</div>';
@@ -267,9 +266,7 @@
 
                 snapshot.forEach(doc => {
                     const d = doc.data();
-                    
-                    // 2 DAQIQA (120000ms) QOIDASI:
-                    // Agar user 2 daqiqadan beri jim bo'lsa -> O'chiramiz
+                    // 2 DAQIQA (120000ms) QOIDASI
                     if (now - d.lastActive > 120000) {
                         db.collection('online_users').doc(doc.id).delete(); 
                         return;
@@ -295,7 +292,7 @@
             });
         }
 
-        // --- STREAK LOGIC (REAL DATE) ---
+        // --- STREAK LOGIC ---
         async function checkAndSaveUser() {
             const userRef = db.collection('users').doc(user.id.toString());
             const todayStr = new Date().toDateString();
@@ -319,17 +316,29 @@
             } catch (error) { console.error(error); }
         }
 
-        // 4. PEERJS & CALL LOGIC
+        // 4. PEERJS & CALL LOGIC (AUDIO FIX)
         function initPeer() {
-            peer = new Peer(myUniqueId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
+            peer = new Peer(myUniqueId, { 
+                config: { 'iceServers': [
+                    { url: 'stun:stun.l.google.com:19302' },
+                    { url: 'stun:stun1.l.google.com:19302' }
+                ]} 
+            });
+
             peer.on('call', (call) => {
                 connectedPartnerName = call.metadata?.name || "User";
-                navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-                    myStream = stream;
-                    call.answer(stream);
-                    document.getElementById('call-ui').classList.remove('hidden');
+                
+                // AUDIO FIX: Reuse existing stream if available
+                if (myStream) {
+                    call.answer(myStream);
                     setupCallUI(call);
-                });
+                } else {
+                    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+                        myStream = stream;
+                        call.answer(stream);
+                        setupCallUI(call);
+                    }).catch(err => alert("Mikrofon xatosi!"));
+                }
             });
         }
 
@@ -339,8 +348,10 @@
             document.getElementById('partner-name-display').innerText = targetName;
             statusText.innerText = "Connecting...";
             try {
+                // Mikrofonni oldindan so'rab qo'yamiz
                 myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
                 if(!peer) initPeer();
+                
                 const callDoc = await db.collection('direct_calls').add({
                     callerId: myUniqueId, callerName: user.first_name, receiverId: targetPeerId, status: 'pending', timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -383,7 +394,12 @@
             document.getElementById('incoming-call-ui').classList.add('hidden');
             if(!currentIncomingDocId) return;
             await db.collection('direct_calls').doc(currentIncomingDocId).update({ status: action === 'accept' ? 'accepted' : 'rejected' });
-            if(action === 'accept') { try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); if(!peer) initPeer(); } catch(e){} }
+            if(action === 'accept') { 
+                try { 
+                    myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                    if(!peer) initPeer(); 
+                } catch(e){} 
+            }
             currentIncomingDocId = null;
         }
 
@@ -417,7 +433,7 @@
             }
         }
 
-        // SETUP UI & CUE CARD
+        // SETUP UI & CUE CARD & AUDIO PLAY
         const cueCards = [
             { topic: "Describe a book you recently read", points: ["What kind of book it is", "What it is about", "Why you decided to read it"] },
             { topic: "Describe a holiday destination", points: ["Where it is", "How you would travel there", "What you would do there"] },
@@ -430,6 +446,7 @@
             const statusText = document.getElementById('call-status-text');
             const partnerNameDisplay = document.getElementById('partner-name-display');
             const timerEl = document.getElementById('call-timer');
+            const remoteAudio = document.getElementById('remote-audio'); // Audio element
             
             // Random Cue Card
             const card = cueCards[Math.floor(Math.random() * cueCards.length)];
@@ -437,11 +454,22 @@
             document.getElementById('cue-points').innerHTML = card.points.map(p => `<li>${p}</li>`).join('');
 
             call.on('stream', (remoteStream) => {
-                statusText.innerText = "Connected"; partnerNameDisplay.innerText = connectedPartnerName;
-                document.getElementById('remote-audio').srcObject = remoteStream;
-                callStartTime = Date.now(); timerEl.classList.remove('hidden'); startTimerUI();
+                statusText.innerText = "Connected"; 
+                partnerNameDisplay.innerText = connectedPartnerName;
+                
+                // AUDIO FORCE PLAY
+                remoteAudio.srcObject = remoteStream;
+                const playPromise = remoteAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => console.log("Auto-play prevented by browser"));
+                }
+
+                callStartTime = Date.now(); 
+                timerEl.classList.remove('hidden'); 
+                startTimerUI();
             });
-            call.on('close', () => endCall()); call.on('error', () => endCall());
+            call.on('close', () => endCall()); 
+            call.on('error', () => endCall());
         }
 
         function startTimerUI() {
@@ -522,8 +550,8 @@
             grid.innerHTML += `<div class="${cls}">${i}</div>`;
         }
 
-        // --- ADMIN STATISTIKA (Maxsus) ---
-        const ADMIN_ID = 5883103021; // Sizning ID raqamingiz
+        // --- ADMIN STATISTIKA ---
+        const ADMIN_ID = 5883103021; 
 
         async function showStats() {
             if (user.id !== ADMIN_ID) return; 
@@ -543,8 +571,8 @@
         setTimeout(() => {
             initPeer();
             listenForIncomingCalls();
-            goOnline();         // Kirganda Online bo'lish
-            checkAndSaveUser(); // Streakni hisoblash
+            goOnline();         
+            checkAndSaveUser(); 
             
             // Admin Check
             if (user.id === ADMIN_ID) {
