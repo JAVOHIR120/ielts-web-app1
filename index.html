@@ -372,10 +372,61 @@
                 document.getElementById('streak-disp').innerText = s;
             });
         }
-        function loadHistory() { db.collection('history').where('user', '==', user.id).orderBy('time', 'desc').limit(5).get().then(s => { const h = document.getElementById('history-list'); h.innerHTML = ""; s.forEach(d => { const v = d.data(); h.innerHTML += `<div class="glass-card" style="padding:10px;"><b>${v.partner}</b> - ${Math.floor(v.dur/60)}:${v.dur%60}</div>`; }); }); }
-        function loadRank() { db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => { const r = document.getElementById('rank-list'); r.innerHTML = ""; let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between;"><b style="color:#ffd700">#${i} ${v.name}</b><span>${v.streak} 🔥</span></div>`; i++; }); }); }
-        function renderCalendar() { const g = document.getElementById('cal-grid'); const n = new Date(); document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' }); ['S','M','T','W','T','F','S'].forEach(d => g.innerHTML += `<div>${d}</div>`); for(let i=1; i<=31; i++) { const c = i===n.getDate()?'today':''; g.innerHTML += `<div class="day ${c}">${i}</div>`; } }
-        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
-    </script>
-</body>
-</html>
+       function loadHistory() {
+            const h = document.getElementById('history-list');
+            h.innerHTML = '<div style="text-align:center; font-size:12px; opacity:0.5; margin-top:10px;">Loading history...</div>';
+
+            // 1. Asosiy urinish (Vaqt bo'yicha saralab)
+            db.collection('history')
+                .where('user', '==', user.id)
+                .orderBy('time', 'desc') // Agar Index bo'lmasa, shu yerda xato beradi
+                .limit(10)
+                .get()
+                .then(renderHistory)
+                .catch(err => {
+                    console.warn("Index topilmadi, oddiy rejimda yuklanmoqda...", err);
+                    
+                    // 2. Zahira rejimi (Agar Index yo'q bo'lsa, saralamasdan yuklaydi)
+                    db.collection('history')
+                        .where('user', '==', user.id)
+                        .limit(10)
+                        .get()
+                        .then(renderHistory);
+                });
+        }
+
+        // Tarixni chizib beruvchi yordamchi funksiya
+        function renderHistory(snap) {
+            const h = document.getElementById('history-list');
+            h.innerHTML = "";
+            
+            if (snap.empty) {
+                h.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px;">No recent calls 📭</div>';
+                return;
+            }
+
+            snap.forEach(d => {
+                const v = d.data();
+                // Vaqtni formatlash (soat:daqiqa)
+                const dateObj = v.time ? new Date(v.time) : new Date();
+                const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                // Davomiylik (min:sec)
+                const min = Math.floor(v.dur / 60);
+                const sec = String(v.dur % 60).padStart(2, '0');
+
+                h.innerHTML += `
+                <div class="glass-card" style="padding:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:40px; height:40px; background:rgba(255,255,255,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px;">👤</div>
+                        <div>
+                            <div style="font-weight:700; font-size:14px;">${v.partner}</div>
+                            <div style="font-size:11px; opacity:0.6;">${timeStr}</div>
+                        </div>
+                    </div>
+                    <div style="font-family:monospace; color:var(--success); font-weight:700; font-size:14px;">
+                        ${min}:${sec}
+                    </div>
+                </div>`;
+            });
+        }
