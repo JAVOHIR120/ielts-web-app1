@@ -376,7 +376,7 @@
             
             try {
                 const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-                    model: "llama3-8b-8192",
+                    model: "llama-3.3-70b-versatile", // Use the versatile model for general use
                     messages: [
                         { role: "system", content: "You are a professional IELTS Speaking Examiner. Your goal is to simulate a Part 1 exam. Keep your responses short (max 2 sentences). Ask one follow-up question at the end of your response. Do not use markdown formatting." },
                         { role: "user", content: userText }
