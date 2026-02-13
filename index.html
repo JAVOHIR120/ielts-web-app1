@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hark/1.0.0/hark.bundle.js"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -105,32 +106,31 @@
             z-index: 4000; display: flex; flex-direction: column; padding: 40px 20px;
             align-items: center; justify-content: space-between;
         }
+        
+        /* AVATAR ANIMATIONS */
+        .avatar-container { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
         .avatar-circle {
-            width: 140px; height: 140px; border-radius: 50%;
+            width: 130px; height: 130px; border-radius: 50%;
             background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
-            font-size: 60px; border: 4px solid var(--primary);
-            animation: breathe 3s infinite ease-in-out;
+            font-size: 60px; border: 4px solid var(--primary); z-index: 2;
+            transition: all 0.3s ease;
         }
-        .avatar-circle.speaking { border-color: var(--success); box-shadow: 0 0 30px var(--success); }
-        .avatar-circle.listening { border-color: var(--danger); box-shadow: 0 0 30px var(--danger); animation: pulse 1s infinite; }
+        .avatar-ring {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            border: 2px solid var(--primary); opacity: 0; z-index: 1;
+        }
+
+        /* States */
+        .avatar-circle.ai-speaking { border-color: #ff4757; box-shadow: 0 0 40px #ff4757; transform: scale(1.1); }
+        .avatar-circle.user-speaking { border-color: var(--success); box-shadow: 0 0 40px var(--success); }
+        .avatar-ring.ripple { animation: ripple 1.5s infinite; }
 
         .controls-row { display: flex; gap: 20px; margin-bottom: 20px; width: 100%; justify-content: center; position: relative;}
-        .control-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .control-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;}
         
-        /* Hold Button Style (Mobile Friendly) */
-        .btn-mic-hold { 
-            width: 80px; height: 80px; background: linear-gradient(135deg, #00b894, #00cec9); 
-            border-radius: 50%; border: none; color: white; font-size: 30px; 
-            box-shadow: 0 0 20px rgba(0, 184, 148, 0.4);
-            touch-action: none; /* Muhim: Bosib turganda ekran siljimaydi */
-            user-select: none;
-            -webkit-user-select: none;
-            transition: transform 0.1s;
-        }
-        .btn-mic-hold:active { transform: scale(0.95); background: #ff4757; }
-        
-        .btn-mic-call { background: rgba(255,255,255,0.2); }
-        .btn-mic-call.muted { background: #555; color: #aaa; }
+        .btn-mic { background: rgba(255,255,255,0.2); }
+        .btn-mic.active { background: var(--success); box-shadow: 0 0 15px var(--success); }
+        .btn-mic.muted { background: #555; color: #aaa; }
         .btn-end { background: var(--danger); }
 
         /* --- NAVIGATION --- */
@@ -144,8 +144,7 @@
         .nav-item.active { color: var(--primary); transform: translateY(-5px); }
 
         /* Animations */
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 71, 87, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); } }
+        @keyframes ripple { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
         @keyframes radar { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
         
         .radar-box { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
@@ -253,8 +252,11 @@
             <div id="call-timer" style="color:var(--success); font-family:monospace; margin-top:5px; font-size:18px;">00:00</div>
         </div>
 
-        <div id="call-avatar" class="avatar-circle">
-            <div id="avatar-emoji">👤</div>
+        <div class="avatar-container">
+            <div class="avatar-ring" id="ring"></div>
+            <div class="avatar-circle" id="call-avatar">
+                <div id="avatar-emoji">👤</div>
+            </div>
         </div>
 
         <div style="width:100%; text-align:center;">
@@ -262,22 +264,12 @@
                 <div style="font-size:10px; color:var(--accent); font-weight:bold;">CURRENT TOPIC</div>
                 <div id="call-topic" style="font-size:14px; margin-top:3px;">Describe your hometown</div>
             </div>
-            <div id="status-text" style="font-size:12px; color:var(--primary); margin-bottom:5px;"></div>
+            <div id="status-text" style="font-size:12px; color:var(--primary); margin-bottom:5px; min-height:18px;">Connecting...</div>
             <div id="ai-subtitle" style="font-size:12px; opacity:0.7; height:40px; overflow:hidden; font-style:italic;"></div>
         </div>
 
         <div class="controls-row">
-            <button class="btn-mic-hold hidden" id="btn-hold-mic" 
-                onmousedown="startRecording(event)" 
-                onmouseup="stopRecording(event)" 
-                ontouchstart="startRecording(event)" 
-                ontouchend="stopRecording(event)"
-                oncontextmenu="return false;">
-                <i class="fas fa-microphone"></i>
-            </button>
-
-            <button class="control-btn btn-mic-call hidden" id="btn-toggle-mic" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
-            
+            <button class="control-btn btn-mic active" id="btn-toggle-mic" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
             <button class="control-btn btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
         </div>
         <audio id="remote-audio" autoplay playsinline></audio>
@@ -385,16 +377,20 @@
     let searchPrefs = { gender: 'any', level: 'any' }; 
     let aiPersona = 'polite';
     let isInAiCall = false;
+    let isMicMuted = false;
     let callTimerInt;
     let peer, myStream, currentCall, waitingId, startTime, incId;
     
-    // Audio Recorder Global
+    // AI Audio Recorder & VAD
     let mediaRecorder;
     let audioChunks = [];
     let isRecording = false;
+    let speechEvents; // Hark instance
+    let silenceTimer;
+    let isAiSpeaking = false;
     let availableVoices = []; // For TTS
 
-    // TTS Voice Loader
+    // TTS Voice Loader (Load instantly)
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {
             availableVoices = window.speechSynthesis.getVoices();
@@ -403,14 +399,7 @@
 
     document.getElementById('u-name').innerText = user.first_name;
 
-    // --- UTILS: DEBUG ---
-    function log(msg) {
-        // console.log(msg);
-        // document.getElementById('debug-log').style.display='block';
-        // document.getElementById('debug-log').innerText = msg;
-    }
-
-    // --- UI LOGIC (SELECTION) ---
+    // --- UI LOGIC ---
     function openSetupModal() { document.getElementById('setup-modal').classList.remove('hidden'); }
     function closeSetupModal() { document.getElementById('setup-modal').classList.add('hidden'); }
 
@@ -425,25 +414,18 @@
 
     function setMyProfile(type, val) {
         myProfile[type] = val;
-        if(type === 'gender') {
-            ['my-male','my-female'].forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById(`my-${val}`).classList.add('active');
-        } else {
-            ['my-beg','my-int','my-adv'].forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById(`my-${val}`).classList.add('active');
-        }
+        let ids = type==='gender' ? ['my-male','my-female'] : ['my-beg','my-int','my-adv'];
+        ids.forEach(id => document.getElementById(id).classList.remove('active'));
+        document.getElementById(`my-${val}`).classList.add('active');
     }
 
     function setSearchPref(type, val) {
         searchPrefs[type] = val;
-        if (type === 'gender' && val === 'ai') {
-            ['g-any','g-male','g-female'].forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById('g-ai').classList.add('active');
-            document.getElementById('ai-persona-section').classList.remove('hidden');
-        } else if (type === 'gender') {
+        if(type==='gender') {
             ['g-any','g-male','g-female','g-ai'].forEach(id => document.getElementById(id).classList.remove('active'));
             document.getElementById(`g-${val}`).classList.add('active');
-            document.getElementById('ai-persona-section').classList.add('hidden');
+            if(val==='ai') document.getElementById('ai-persona-section').classList.remove('hidden');
+            else document.getElementById('ai-persona-section').classList.add('hidden');
         } else {
             ['l-any','l-same'].forEach(id => document.getElementById(id).classList.remove('active'));
             document.getElementById(`l-${val}`).classList.add('active');
@@ -467,67 +449,74 @@
         if(t==='admin') loadAdminStats();
     }
 
-    // --- AUDIO RECORDER (THE FIX FOR MOBILE) ---
-    async function setupRecorder() {
-        try {
-            // Android Chrome = webm, iOS Safari = mp4
-            let mimeType = 'audio/webm';
-            if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4'; 
-            else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+    // --- AI VAD LOGIC (HANDS FREE) ---
+    function initVAD(stream) {
+        // Hark listens for volume changes
+        speechEvents = hark(stream, { threshold: -50, interval: 100 });
 
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        speechEvents.on('speaking', function() {
+            if (isAiSpeaking || isMicMuted) return; // Ignore if AI talks or Muted
             
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) audioChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: mimeType });
-                audioChunks = [];
-                document.getElementById('status-text').innerText = "Thinking...";
-                await processAudio(audioBlob, mimeType);
-            };
-        } catch (err) {
-            alert("Mic Access Denied. Check settings.");
-        }
-    }
-
-    function startRecording(e) {
-        if(e) e.preventDefault(); // Stop touch scroll
-        if (!mediaRecorder) { setupRecorder(); return; }
-        if (isRecording) return;
-        
-        // UNLOCK AUDIO CONTEXT (IOS FIX)
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
-        }
-
-        isRecording = true;
-        audioChunks = [];
-        try {
-            mediaRecorder.start();
-            document.getElementById('call-avatar').classList.add('listening');
+            // Visuals
             document.getElementById('status-text').innerText = "Listening...";
-            document.getElementById('btn-hold-mic').style.transform = "scale(1.1)";
-            document.getElementById('btn-hold-mic').style.background = "#ff4757";
-        } catch(e) { console.error(e); }
+            document.getElementById('call-avatar').classList.add('listening');
+            document.getElementById('ring').classList.add('ripple');
+            
+            clearTimeout(silenceTimer);
+            startRecording(); // Start capturing audio
+        });
+
+        speechEvents.on('stopped_speaking', function() {
+            if (isAiSpeaking || isMicMuted) return;
+
+            // Visuals
+            document.getElementById('call-avatar').classList.remove('listening');
+            document.getElementById('ring').classList.remove('ripple');
+            
+            // Wait 1.5s silence before processing
+            silenceTimer = setTimeout(() => {
+                stopRecordingAndSend();
+            }, 1500); 
+        });
     }
 
-    function stopRecording(e) {
-        if(e) e.preventDefault();
-        if (!isRecording) return;
-        isRecording = false;
-        try {
+    // --- RECORDER LOGIC (MOBILE COMPATIBLE) ---
+    function setupRecorder(stream) {
+        // Choose best mime type
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4'; // iOS
+        else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        
+        mediaRecorder.ondataavailable = event => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            if (audioChunks.length === 0) return;
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            audioChunks = [];
+            document.getElementById('status-text').innerText = "Thinking...";
+            await processAudio(audioBlob, mimeType);
+        };
+    }
+
+    function startRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'inactive') {
+            audioChunks = [];
+            mediaRecorder.start();
+        }
+    }
+
+    function stopRecordingAndSend() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
-            document.getElementById('call-avatar').classList.remove('listening');
-            document.getElementById('btn-hold-mic').style.transform = "scale(1)";
-            document.getElementById('btn-hold-mic').style.background = "linear-gradient(135deg, #00b894, #00cec9)";
-        } catch(e) { console.error(e); }
+        }
     }
 
     async function processAudio(blob, mimeType) {
+        // Prepare file for Groq
         const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
         const file = new File([blob], `voice.${ext}`, { type: mimeType });
         
@@ -536,51 +525,64 @@
         formData.append("model", "distil-whisper-large-v3-en"); 
 
         try {
-            // 1. STT (Whisper)
+            // 1. Whisper API (STT)
+            // DO NOT set Content-Type header manually for FormData, axios/browser does it
             const sttResponse = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
-                headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` }
+                headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } 
             });
 
             const userText = sttResponse.data.text;
             if(!userText || userText.trim().length < 2) {
-                document.getElementById('status-text').innerText = "Hold to Speak";
+                document.getElementById('status-text').innerText = "Listening...";
                 return;
             }
 
             document.getElementById('ai-subtitle').innerText = "You: " + userText;
             
-            // 2. LLM (Llama)
+            // 2. Llama API (LLM)
             await askGroq(userText);
 
         } catch (error) {
             console.error(error);
-            document.getElementById('status-text').innerText = "Error. Try again.";
+            document.getElementById('status-text').innerText = "Listening..."; // Silent fail to not break flow
         }
     }
 
-    // --- AI LOGIC ---
+    // --- AI & TTS ---
     function startAiCall() {
         isInAiCall = true;
+        isMicMuted = false;
+        
         document.getElementById('call-ui').classList.remove('hidden');
         document.getElementById('call-partner-name').innerText = "AI Tutor (" + (aiPersona==='savage'?'😈':'😇') + ")";
         document.getElementById('avatar-emoji').innerText = "🤖";
+        document.getElementById('status-text').innerText = "Connecting...";
         
-        document.getElementById('btn-hold-mic').classList.remove('hidden');
-        document.getElementById('btn-toggle-mic').classList.add('hidden');
-        document.getElementById('status-text').innerText = "Hold Mic to Speak";
-        
-        setupRecorder();
-        startTimer();
+        // Unlock Audio (Mobile Safari Fix)
+        if ('speechSynthesis' in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
-        setTimeout(() => {
-            let text = aiPersona === 'savage' ? "I'm listening. Speak now." : "Hello! I'm ready to help you speak.";
-            speakAI(text);
-        }, 1000);
+        navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+        .then(stream => {
+            myStream = stream;
+            // 1. Init VAD
+            initVAD(stream);
+            // 2. Init Recorder
+            setupRecorder(stream);
+            
+            startTimer();
+            
+            // Greeting
+            setTimeout(() => {
+                let text = aiPersona === 'savage' ? "Finally. I am your examiner. Introduce yourself." : "Hello! I'm your Speaking Buddy. Please introduce yourself.";
+                speakAI(text);
+            }, 1000);
+        })
+        .catch(e => { alert("Mic Error: " + e.message); endCall(); });
     }
 
     async function askGroq(txt) {
         try {
-            const sys = aiPersona === 'savage' ? "You are a rude IELTS examiner. Correct hard." : "You are a kind IELTS examiner. Keep answers short.";
+            const sys = aiPersona === 'savage' ? "You are a rude IELTS examiner. Roast mistakes. Short answers." : "You are a kind IELTS examiner. Keep answers short.";
             const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
                 model: "llama-3.3-70b-versatile",
                 messages: [{role:"system", content:sys}, {role:"user", content:txt}]
@@ -593,41 +595,50 @@
         document.getElementById('ai-subtitle').innerText = text;
         document.getElementById('status-text').innerText = "AI Speaking...";
         
+        isAiSpeaking = true; // Block Mic
+        document.getElementById('call-avatar').classList.add('speaking');
+
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'en-US';
 
-            // --- VOICE SELECTION ---
+            // Voice Selection logic
             if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
-
+            
             if (aiPersona === 'savage') {
-                u.rate = 1.15;
-                u.pitch = 0.8;
-                const maleVoice = availableVoices.find(v => (v.name.includes('Male') || v.name.includes('David') || v.name.includes('Google US English')) && v.lang.includes('en'));
-                if (maleVoice) u.voice = maleVoice;
+                u.rate = 1.15; u.pitch = 0.8;
+                const v = availableVoices.find(v => (v.name.includes('Male') || v.name.includes('Google US')) && v.lang.includes('en'));
+                if(v) u.voice = v;
             } else {
-                u.rate = 0.9;
-                u.pitch = 1.1;
-                const femaleVoice = availableVoices.find(v => (v.name.includes('Female') || v.name.includes('Samantha')) && v.lang.includes('en'));
-                if (femaleVoice) u.voice = femaleVoice;
+                u.rate = 0.9; u.pitch = 1.1;
+                const v = availableVoices.find(v => (v.name.includes('Female') || v.name.includes('Samantha')) && v.lang.includes('en'));
+                if(v) u.voice = v;
             }
             
-            u.onstart = () => document.getElementById('call-avatar').classList.add('speaking');
             u.onend = () => {
+                isAiSpeaking = false; // Unblock Mic
                 document.getElementById('call-avatar').classList.remove('speaking');
-                document.getElementById('status-text').innerText = "Hold Mic to Reply";
+                document.getElementById('status-text').innerText = "Listening...";
+                // Re-arm VAD
+                if(speechEvents) speechEvents.start();
             };
+            
+            // Stop VAD while AI speaks
+            if(speechEvents) speechEvents.stop();
+            
             window.speechSynthesis.speak(u);
         }
     }
 
-    // --- HUMAN MATCHING ---
+    // --- HUMAN CALLS ---
     async function startRandomCall() {
-        if(!myStream) { alert("Mic required!"); return; }
+        if(!myStream) { 
+             try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } 
+             catch(e) { alert("Mic required!"); return; }
+        }
         document.getElementById('search-overlay').classList.remove('hidden');
-        document.getElementById('search-text').innerText = "Looking for " + (searchPrefs.gender==='any'?'Anyone':searchPrefs.gender) + "...";
-
+        
         try {
             const old = await db.collection('waiting_room').where('time', '<', Date.now()-60000).get();
             old.forEach(d => d.ref.delete());
@@ -638,7 +649,6 @@
             snap.forEach(doc => {
                 const partner = doc.data();
                 if(partner.peerId === peer.id) return; 
-                // Simple matching logic
                 if ((searchPrefs.gender==='any' || searchPrefs.gender===partner.gender) && 
                     (partner.targetGender==='any' || partner.targetGender===myProfile.gender)) {
                     match = { id: doc.id, ...partner };
@@ -668,9 +678,6 @@
         document.getElementById('call-partner-name').innerText = name || "User";
         document.getElementById('avatar-emoji').innerText = "👤";
         document.getElementById('ai-subtitle').innerText = "Connected via PeerJS";
-        
-        document.getElementById('btn-hold-mic').classList.add('hidden');
-        document.getElementById('btn-toggle-mic').classList.remove('hidden');
         document.getElementById('status-text').innerText = "Connected";
 
         call.on('stream', s => { 
@@ -687,19 +694,15 @@
 
     // --- DIRECT CALLS ---
     async function startDirect(tid, name) {
-        if(!myStream) { alert("Mic required!"); return; }
+        if(!myStream) try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e){return;}
         document.getElementById('search-overlay').classList.remove('hidden');
-        document.getElementById('search-text').innerText = "Calling " + name + "...";
-        document.getElementById('search-sub').innerText = "Waiting for answer";
-        
         const doc = await db.collection('calls').add({ from: peer.id, fromName: user.first_name, to: tid, status: 'pending', time: Date.now() });
-        
         doc.onSnapshot(s => {
             if(s.data()?.status === 'accepted') {
                 const call = peer.call(tid, myStream, { metadata: { name: user.first_name } });
                 setupHumanCall(call, name);
             } else if(s.data()?.status === 'rejected') {
-                alert("User declined."); cancelSearch();
+                alert("Declined"); cancelSearch();
             }
         });
     }
@@ -720,7 +723,6 @@
         document.getElementById('incoming-modal').classList.add('hidden'); 
         await db.collection('calls').doc(incId).update({ status: 'accepted' }); 
     }
-    
     function rejectCall() { 
         document.getElementById('incoming-modal').classList.add('hidden'); 
         if(incId) db.collection('calls').doc(incId).update({ status: 'rejected' }); 
@@ -728,23 +730,41 @@
 
     // --- UTILS ---
     function endCall() {
-        document.getElementById('call-ui').classList.add('hidden');
-        if(isInAiCall) { window.speechSynthesis.cancel(); isInAiCall = false; }
-        else { 
+        isCallActive = false;
+        if(isInAiCall) { 
+            window.speechSynthesis.cancel(); 
+            if(speechEvents) speechEvents.stop();
+            if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            isInAiCall = false; 
+        } else { 
             if(currentCall) currentCall.close(); 
             if(waitingId) db.collection('waiting_room').doc(waitingId).delete();
             db.collection('history').add({user:user.id, partner:document.getElementById('call-partner-name').innerText, time:Date.now()});
             loadHistory();
         }
+        // Stop Tracks to release mic
+        if(myStream) myStream.getTracks().forEach(t => t.stop());
+        myStream = null;
+        
+        document.getElementById('call-ui').classList.add('hidden');
         clearInterval(callTimerInt);
     }
 
     function toggleMute() {
-        let isMuted = !myStream.getAudioTracks()[0].enabled;
-        myStream.getAudioTracks()[0].enabled = isMuted;
+        if (!myStream) return;
+        isMicMuted = !isMicMuted;
+        myStream.getAudioTracks()[0].enabled = !isMicMuted;
+        
         const btn = document.getElementById('btn-toggle-mic');
-        if(isMuted) { btn.classList.remove('muted'); btn.innerHTML = '<i class="fas fa-microphone"></i>'; } 
-        else { btn.classList.add('muted'); btn.innerHTML = '<i class="fas fa-microphone-slash"></i>'; }
+        if(isMicMuted) {
+            btn.classList.add('muted'); btn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            document.getElementById('status-text').innerText = "Muted";
+            if(isInAiCall && speechEvents) speechEvents.stop();
+        } else {
+            btn.classList.remove('muted'); btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            document.getElementById('status-text').innerText = "Listening...";
+            if(isInAiCall && speechEvents) speechEvents.start();
+        }
     }
 
     function startTimer() {
@@ -755,16 +775,20 @@
         }, 1000);
     }
 
-    // --- INITIALIZATION ---
+    // --- INIT ---
     async function enterApp() {
-        try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e) { console.warn("Mic error"); }
+        // Pre-request not needed here, do it on call start to save battery/status bar
         document.getElementById('start-overlay').classList.add('hidden');
         switchTab('home');
 
         peer = new Peer(myId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
         peer.on('call', call => {
             cancelSearch();
-            if(myStream) { call.answer(myStream); setupHumanCall(call, call.metadata?.name); }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+                myStream = s;
+                call.answer(myStream); 
+                setupHumanCall(call, call.metadata?.name);
+            });
         });
 
         goOnline(); listenIncoming(); loadStats(); renderCalendar(); loadHistory(); loadRank();
@@ -776,7 +800,7 @@
         setInterval(() => db.collection('online').doc(String(user.id)).update({last: Date.now()}), 30000);
     }
 
-    // --- DATA ---
+    // --- DATA LOADERS ---
     function loadUsers() {
         db.collection('online').orderBy('last', 'desc').onSnapshot(s => {
             let h = "";
@@ -790,31 +814,12 @@
             document.getElementById('users-list').innerHTML = h || "<div style='text-align:center; opacity:0.5; margin-top:20px'>No other users online</div>";
         });
     }
-
-    function loadHistory() {
-        db.collection('history').where('user','==',user.id).limit(5).get().then(s => {
-            let h = "";
-            s.forEach(d => {
-                let t = new Date(d.data().time).toLocaleTimeString();
-                h += `<div class="glass-card" style="padding:10px; font-size:13px;"><b>${d.data().partner}</b> <span style="float:right; opacity:0.5">${t}</span></div>`;
-            });
-            document.getElementById('history-list').innerHTML = h;
-        });
-    }
-    
+    function loadHistory() { db.collection('history').where('user','==',user.id).limit(5).get().then(s => { let h = ""; s.forEach(d => { let t = new Date(d.data().time).toLocaleTimeString(); h += `<div class="glass-card" style="padding:10px; font-size:13px;"><b>${d.data().partner}</b> <span style="float:right; opacity:0.5">${t}</span></div>`; }); document.getElementById('history-list').innerHTML = h; }); }
     function loadStats() { db.collection('users').doc(String(user.id)).get().then(d => { if(d.exists) document.getElementById('streak-disp').innerText = d.data().streak||0; }); }
     function loadRank() { db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => { const r = document.getElementById('rank-list'); r.innerHTML = ""; let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px;"><b>#${i} ${v.name}</b> ${v.streak} 🔥</div>`; i++; }); }); }
     function renderCalendar() { const g = document.getElementById('cal-grid'); const n = new Date(); document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' }); for(let i=1; i<=31; i++) { const c = i===n.getDate()?'today':''; g.innerHTML += `<div class="day ${c}">${i}</div>`; } }
     function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
-
-    // --- ADMIN ---
-    async function loadAdminStats() {
-        if(user.id !== ADMIN_ID) return;
-        document.getElementById('adm-users').innerText = (await db.collection('users').get()).size;
-        document.getElementById('adm-online').innerText = (await db.collection('online').get()).size;
-        document.getElementById('adm-waiting').innerText = (await db.collection('waiting_room').get()).size;
-        document.getElementById('adm-history').innerText = (await db.collection('history').get()).size;
-    }
+    async function loadAdminStats() { if(user.id !== ADMIN_ID) return; document.getElementById('adm-users').innerText = (await db.collection('users').get()).size; document.getElementById('adm-online').innerText = (await db.collection('online').get()).size; document.getElementById('adm-waiting').innerText = (await db.collection('waiting_room').get()).size; document.getElementById('adm-history').innerText = (await db.collection('history').get()).size; }
     async function cleanWaitingRoom() { if(confirm("Clean?")) (await db.collection('waiting_room').get()).forEach(d=>d.ref.delete()); }
     async function cleanOnlineList() { if(confirm("Clean?")) (await db.collection('online').get()).forEach(d=>d.ref.delete()); }
 </script>
