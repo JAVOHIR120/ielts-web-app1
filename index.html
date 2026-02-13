@@ -10,25 +10,24 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hark/1.0.0/hark.bundle.js"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-        /* --- GLOBAL --- */
+        /* --- GLOBAL STYLES --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+        
         :root {
-            --bg-dark: #0f0c29;
-            --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #2f3640 100%);
+            --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 100%);
             --glass: rgba(255, 255, 255, 0.05);
-            --primary: #00a8ff;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #6c5ce7;
             --accent: #00cec9;
             --text: #ffffff;
-            --danger: #e84118;
-            --success: #4cd137;
+            --danger: #ff7675;
+            --success: #00b894;
             --admin: #e17055;
-            --card-radius: 16px;
         }
 
         body {
@@ -38,790 +37,576 @@
             margin: 0; padding: 0;
             height: 100vh; width: 100vw;
             overflow: hidden;
-            display: flex; justify-content: center;
         }
 
-        #app-container {
-            width: 100%; height: 100%;
-            max-width: 500px;
-            background: rgba(0,0,0,0.2);
-            position: relative;
-            display: flex; flex-direction: column;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-
-        #app { flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; scrollbar-width: none; }
-        #app::-webkit-scrollbar { display: none; }
+        #app { height: 100%; overflow-y: auto; padding-bottom: 90px; }
         .hidden { display: none !important; }
+        .container { padding: 20px; max-width: 500px; margin: 0 auto; }
 
         /* --- UI COMPONENTS --- */
         .glass-card {
-            background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--card-radius); padding: 15px; margin-bottom: 15px;
-            backdrop-filter: blur(10px);
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 20px; margin-bottom: 15px; backdrop-filter: blur(10px);
         }
-
-        .section-title { font-size: 12px; color: var(--primary); font-weight: 700; margin: 15px 0 5px 5px; text-transform: uppercase; letter-spacing: 1px; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-
-        .select-card {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 12px; padding: 12px; text-align: center;
-            cursor: pointer; transition: 0.2s; border: 2px solid transparent;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 13px;
-        }
-        .select-card:hover { background: rgba(255,255,255,0.15); }
-        .select-card.active { background: rgba(0, 168, 255, 0.2); border-color: var(--primary); box-shadow: 0 0 10px rgba(0, 168, 255, 0.2); }
-        .emoji-icon { font-size: 20px; margin-bottom: 5px; }
 
         .btn-main {
-            background: var(--primary); color: white; border: none; padding: 16px; width: 100%;
-            border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 168, 255, 0.3); margin-top: 10px; transition: transform 0.1s;
+            background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white; border: none; padding: 16px; width: 100%;
+            border-radius: 16px; font-size: 16px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4); margin-top: 10px;
         }
         .btn-main:active { transform: scale(0.98); }
-        .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; margin-top: 10px; }
+        .btn-danger { background: var(--danger); box-shadow: 0 5px 15px rgba(255, 118, 117, 0.4); }
         
-        /* Direct Call User Row */
-        .user-row { display: flex; justify-content: space-between; align-items: center; }
-        .user-info { display: flex; align-items: center; gap: 10px; }
-        .user-avatar { width: 35px; height: 35px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .btn-call-small { background: var(--success); color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 14px; }
-
-        /* --- MODALS --- */
-        .modal-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 12, 41, 0.98); z-index: 5000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        
-        /* --- CALL UI --- */
-        .call-ui {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(180deg, #130f40 0%, #000 100%);
-            z-index: 4000; display: flex; flex-direction: column; padding: 40px 20px;
-            align-items: center; justify-content: space-between;
-        }
-        
-        /* AVATAR ANIMATIONS */
-        .avatar-container { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
-        .avatar-circle {
-            width: 130px; height: 130px; border-radius: 50%;
-            background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
-            font-size: 60px; border: 4px solid var(--primary); z-index: 2;
-            transition: all 0.3s ease;
-        }
-        .avatar-ring {
-            position: absolute; width: 100%; height: 100%; border-radius: 50%;
-            border: 2px solid var(--primary); opacity: 0; z-index: 1;
+        .btn-glass {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 14px; width: 100%; border-radius: 16px;
+            font-weight: 600; cursor: pointer; margin-top: 10px;
         }
 
-        /* States */
-        .avatar-circle.ai-speaking { border-color: #ff4757; box-shadow: 0 0 40px #ff4757; transform: scale(1.1); }
-        .avatar-circle.user-speaking { border-color: var(--success); box-shadow: 0 0 40px var(--success); }
-        .avatar-ring.ripple { animation: ripple 1.5s infinite; }
-
-        .controls-row { display: flex; gap: 20px; margin-bottom: 20px; width: 100%; justify-content: center; position: relative;}
-        .control-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;}
-        
-        .btn-mic { background: rgba(255,255,255,0.2); }
-        .btn-mic.active { background: var(--success); box-shadow: 0 0 15px var(--success); }
-        .btn-mic.muted { background: #555; color: #aaa; }
-        .btn-end { background: var(--danger); }
-
-        /* --- NAVIGATION --- */
-        .bottom-nav {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(15, 12, 41, 0.95); padding: 15px 0;
-            display: flex; justify-content: space-around;
-            border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000;
+        /* --- AI CHAT STYLES --- */
+        .chat-container {
+            height: 400px; overflow-y: auto; padding: 10px;
+            display: flex; flex-direction: column; gap: 15px;
+            scroll-behavior: smooth;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .nav-item { color: #636e72; font-size: 24px; transition: 0.2s; cursor: pointer; }
-        .nav-item.active { color: var(--primary); transform: translateY(-5px); }
-
-        /* Animations */
-        @keyframes ripple { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
-        @keyframes radar { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+        .chat-bubble {
+            padding: 12px 18px; border-radius: 18px;
+            max-width: 85%; font-size: 14px; line-height: 1.5;
+            position: relative; animation: popIn 0.3s ease;
+        }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
         
-        .radar-box { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
-        .radar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: radar 2s infinite linear; }
+        .chat-ai {
+            background: rgba(255,255,255,0.1); 
+            align-self: flex-start; 
+            border-bottom-left-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .chat-user {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            align-self: flex-end; 
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        /* AI MIC BUTTON */
+        .mic-wrapper {
+            position: fixed; bottom: 95px; left: 0; width: 100%;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column; z-index: 10; pointer-events: none;
+        }
+        .mic-btn {
+            pointer-events: auto;
+            width: 75px; height: 75px; border-radius: 50%;
+            border: none; color: white; font-size: 30px;
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            box-shadow: 0 0 25px rgba(0, 184, 148, 0.5);
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mic-btn:active { transform: scale(0.9); }
+        .mic-btn.listening {
+            background: #ff7675;
+            box-shadow: 0 0 30px rgba(255, 118, 117, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+        .ai-status-text {
+            background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px;
+            font-size: 12px; margin-top: 10px; backdrop-filter: blur(5px);
+            pointer-events: auto; transition: 0.3s; opacity: 0.8; color: white;
+        }
+
+        /* --- ADMIN STYLES --- */
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .admin-card { background: rgba(225, 112, 85, 0.1); border: 1px solid rgba(225, 112, 85, 0.3); border-radius: 16px; padding: 15px; text-align: center; }
+        .admin-val { font-size: 24px; font-weight: 800; color: var(--admin); }
+        .admin-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; }
+        .admin-btn-group { display: flex; flex-direction: column; gap: 10px; }
+        .btn-admin { background: rgba(225, 112, 85, 0.2); border: 1px solid var(--admin); color: var(--admin); padding: 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
+
+        /* --- SCREENS --- */
+        .full-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5000; background: #0f0c29; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .radar-box { width: 100px; height: 100px; margin: 20px auto; position: relative; display: flex; align-items: center; justify-content: center; }
+        .radar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: radar 2s infinite linear; }
         .radar-ring:nth-child(2) { animation-delay: 0.5s; }
+        @keyframes radar { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.4); } 70% { box-shadow: 0 0 0 25px rgba(255, 118, 117, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0); } }
 
-        /* Calendar */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 12px; margin-top: 10px; }
-        .day { padding: 6px; border-radius: 6px; color: rgba(255,255,255,0.5); }
+        /* CALL UI */
+        .call-ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #1e272e 0%, #000 100%); z-index: 4000; display: flex; flex-direction: column; padding: 30px 20px; }
+        .cue-box { background: rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; margin: 20px 0; flex-grow: 1; border: 1px solid rgba(255,255,255,0.1); overflow-y: auto; }
+        .cue-title { color: var(--accent); font-size: 20px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+        .cue-list li { margin-bottom: 8px; color: #dfe6e9; line-height: 1.4; }
+
+        /* NAV */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(15, 12, 41, 0.95); padding: 15px 0; display: flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
+        .nav-item { color: #636e72; font-size: 22px; transition: 0.2s; position: relative; }
+        .nav-item.active { color: var(--primary); transform: translateY(-3px); }
+        .nav-item.admin-active { color: var(--admin) !important; transform: translateY(-3px); }
+
+        /* CALENDAR */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; margin-top: 10px; }
+        .day { padding: 5px; border-radius: 5px; color: rgba(255,255,255,0.5); }
         .day.today { background: var(--primary); color: white; font-weight: bold; }
-
-        /* Admin */
-        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .admin-card { background: rgba(225, 112, 85, 0.1); border: 1px solid var(--admin); padding: 10px; border-radius: 12px; text-align: center; }
-        .btn-admin { background: rgba(225, 112, 85, 0.2); color: var(--admin); border: 1px solid var(--admin); padding: 8px; width: 100%; margin-top: 5px; border-radius: 8px; cursor: pointer; }
-        
-        .persona-option { display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 2px solid transparent; text-align: left; width: 100%; }
-        .persona-option.active { border-color: var(--primary); background: rgba(0, 168, 255, 0.1); }
-        
-        .config-section { width: 100%; margin-bottom: 20px; }
-        
-        #debug-log { position: fixed; top:0; left:0; width:100%; background:rgba(0,0,0,0.8); font-size:10px; color:#ff4757; z-index:9999; display:none; padding:5px; }
     </style>
 </head>
 <body>
 
-<div id="debug-log"></div>
-
-<div id="app-container">
-
-    <div id="start-overlay" class="modal-overlay">
-        <div style="text-align:center;">
-            <div style="font-size: 70px; margin-bottom: 20px;">👋</div>
-            <h1>Speaking Tutor</h1>
-            <p style="opacity:0.6; margin-bottom: 30px;">Professional IELTS Practice</p>
-            <button class="btn-main" style="width:200px" onclick="enterApp()">START</button>
-        </div>
+    <div id="start-overlay" class="full-overlay">
+        <div style="font-size: 70px; margin-bottom: 20px;">👋</div>
+        <h1>Speaking Tutor</h1>
+        <p style="color: #b2bec3; margin-bottom: 30px;">Practice IELTS Speaking.</p>
+        <button class="btn-main" style="width:200px" onclick="enterApp()">START</button>
+        <p style="font-size: 10px; color: #555; margin-top: 20px;">v6.0 AI + Random Match</p>
     </div>
 
-    <div id="setup-modal" class="modal-overlay hidden">
-        <h2 style="margin-bottom:20px;">Setup Call</h2>
-        
-        <div class="glass-card config-section">
-            <div class="section-title">I AM:</div>
-            <div class="grid-2">
-                <div class="select-card active" id="my-male" onclick="setMyProfile('gender','male')"><div class="emoji-icon">👨</div>Male</div>
-                <div class="select-card" id="my-female" onclick="setMyProfile('gender','female')"><div class="emoji-icon">👩</div>Female</div>
-            </div>
-            <div class="grid-3" style="margin-top:10px;">
-                <div class="select-card" id="my-beg" onclick="setMyProfile('level','beg')">Beginner</div>
-                <div class="select-card active" id="my-int" onclick="setMyProfile('level','int')">Interm.</div>
-                <div class="select-card" id="my-adv" onclick="setMyProfile('level','adv')">Advanced</div>
-            </div>
-        </div>
-
-        <div class="glass-card config-section">
-            <div class="section-title">I WANT TO SPEAK WITH:</div>
-            <div class="grid-3">
-                <div class="select-card active" id="g-any" onclick="setSearchPref('gender','any')"><div class="emoji-icon">🌍</div>Any</div>
-                <div class="select-card" id="g-male" onclick="setSearchPref('gender','male')"><div class="emoji-icon">👨</div>Male</div>
-                <div class="select-card" id="g-female" onclick="setSearchPref('gender','female')"><div class="emoji-icon">👩</div>Female</div>
-            </div>
-            <div style="margin-top:10px;"></div>
-            <div class="grid-3">
-                <div class="select-card active" id="l-any" onclick="setSearchPref('level','any')">Any Lvl</div>
-                <div class="select-card" id="l-same" onclick="setSearchPref('level','same')">My Lvl</div>
-                <div class="select-card" id="g-ai" onclick="setSearchPref('gender', 'ai')" style="border-color:var(--accent); background:rgba(0, 206, 201, 0.1);">
-                    <div class="emoji-icon">🤖</div>AI Bot
-                </div>
-            </div>
-        </div>
-
-        <div id="ai-persona-section" class="glass-card config-section hidden">
-            <div class="section-title">AI PERSONALITY:</div>
-            <div class="persona-option" id="p-savage" onclick="selectPersona('savage')">
-                <div style="font-size:24px;">😈</div>
-                <div><b>Savage</b><br><span style="font-size:10px; opacity:0.6">Strict & Brutal</span></div>
-            </div>
-            <div class="persona-option active" id="p-polite" onclick="selectPersona('polite')">
-                <div style="font-size:24px;">😇</div>
-                <div><b>Polite</b><br><span style="font-size:10px; opacity:0.6">Kind & Helpful</span></div>
-            </div>
-        </div>
-
-        <div style="width:100%; display:flex; gap:10px;">
-            <button class="btn-secondary" onclick="closeSetupModal()">Cancel</button>
-            <button class="btn-main" style="margin-top:10px;" onclick="confirmSetup()">START CALL</button>
-        </div>
-    </div>
-
-    <div id="search-overlay" class="modal-overlay hidden" style="background:var(--bg-dark);">
+    <div id="search-overlay" class="full-overlay hidden">
         <div class="radar-box">
             <div class="radar-ring"></div><div class="radar-ring"></div>
-            <div style="font-size:50px;">🌍</div>
+            <div style="font-size:40px;">🌍</div>
         </div>
-        <div id="search-text" style="font-size:18px; font-weight:600; margin-top:20px;">Finding Partner...</div>
-        <div id="search-sub" style="font-size:12px; opacity:0.6; margin-top:5px;">Please wait</div>
-        <button class="btn-secondary" style="width:150px; margin-top:30px; border-color:var(--danger); color:var(--danger);" onclick="cancelSearch()">Cancel</button>
+        <div id="search-status" style="color:var(--accent); margin-bottom:20px;">Searching...</div>
+        <button class="btn-main btn-danger" style="width:150px;" onclick="cancelSearch()">CANCEL</button>
     </div>
 
-    <div id="call-ui" class="call-ui hidden">
+    <div id="call-overlay" class="call-ui hidden">
         <div style="text-align:center;">
-            <div style="font-size:12px; opacity:0.5; margin-bottom:5px; letter-spacing:1px;">CONNECTED</div>
-            <h2 id="call-partner-name" style="margin:0;">Partner</h2>
-            <div id="call-timer" style="color:var(--success); font-family:monospace; margin-top:5px; font-size:18px;">00:00</div>
+            <div id="call-partner" style="font-size:24px; font-weight:700;">Partner Name</div>
+            <div id="call-timer" style="color:var(--success); font-family:monospace; font-size:18px;">00:00</div>
         </div>
-
-        <div class="avatar-container">
-            <div class="avatar-ring" id="ring"></div>
-            <div class="avatar-circle" id="call-avatar">
-                <div id="avatar-emoji">👤</div>
-            </div>
-        </div>
-
-        <div style="width:100%; text-align:center;">
-            <div class="glass-card" style="padding:10px;">
-                <div style="font-size:10px; color:var(--accent); font-weight:bold;">CURRENT TOPIC</div>
-                <div id="call-topic" style="font-size:14px; margin-top:3px;">Describe your hometown</div>
-            </div>
-            <div id="status-text" style="font-size:12px; color:var(--primary); margin-bottom:5px; min-height:18px;">Connecting...</div>
-            <div id="ai-subtitle" style="font-size:12px; opacity:0.7; height:40px; overflow:hidden; font-style:italic;"></div>
-        </div>
-
-        <div class="controls-row">
-            <button class="control-btn btn-mic active" id="btn-toggle-mic" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
-            <button class="control-btn btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
+        <div id="cue-box" class="cue-box">
+            <div style="color:var(--primary); font-size:12px; font-weight:bold; margin-bottom:5px;">TOPIC</div>
+            <div id="cue-topic" class="cue-title">Loading...</div>
+            <ul id="cue-points" class="cue-list" style="padding-left:20px;"></ul>
         </div>
         <audio id="remote-audio" autoplay playsinline></audio>
+        <div style="display:flex; justify-content:center; gap:20px; margin-top:auto;">
+            <button onclick="toggleMute()" style="width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,0.2); border:none; color:white; font-size:20px;"><i class="fas fa-microphone"></i></button>
+            <button onclick="endCall()" style="width:60px; height:60px; border-radius:50%; background:var(--danger); border:none; color:white; font-size:20px;"><i class="fas fa-phone-slash"></i></button>
+        </div>
     </div>
 
-    <div id="incoming-modal" class="modal-overlay hidden">
-        <div class="glass-card" style="text-align:center; width:80%;">
-            <div style="font-size:50px; margin-bottom:10px;">📲</div>
-            <h3 id="inc-name" style="margin:0;">User</h3>
-            <p style="color:var(--success); margin:5px 0 20px 0;">Incoming Call...</p>
-            <div style="display:flex; gap:20px; justify-content:center;">
-                <button onclick="rejectCall()" class="control-btn btn-end" style="width:50px; height:50px;"><i class="fas fa-times"></i></button>
-                <button onclick="acceptCall()" class="control-btn" style="width:50px; height:50px; background:var(--success);"><i class="fas fa-phone"></i></button>
-            </div>
+    <div id="incoming-modal" class="full-overlay hidden" style="background:rgba(0,0,0,0.95);">
+        <div style="width:100px; height:100px; border-radius:50%; background:#2d3436; display:flex; align-items:center; justify-content:center; font-size:40px; border:2px solid var(--success); margin-bottom:20px;"><i class="fas fa-user"></i></div>
+        <h2 id="inc-name">User</h2>
+        <p style="color:var(--success); margin-bottom:40px;">Incoming Call...</p>
+        <div style="display:flex; gap:30px;">
+            <button onclick="rejectCall()" style="width:70px; height:70px; border-radius:50%; background:var(--danger); border:none; font-size:24px; color:white"><i class="fas fa-times"></i></button>
+            <button onclick="acceptCall()" style="width:70px; height:70px; border-radius:50%; background:var(--success); border:none; font-size:24px; color:white"><i class="fas fa-phone"></i></button>
         </div>
     </div>
 
     <div id="app">
         
-        <section id="home-page">
+        <section id="home-page" class="page container">
             <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <div style="font-size:11px; opacity:0.7">Welcome back</div>
-                    <b id="u-name" style="font-size:18px;">Guest</b>
-                </div>
-                <div style="background:var(--primary); padding:5px 12px; border-radius:20px; font-size:12px; font-weight:bold;">
-                    🔥 <span id="streak-disp">0</span>
-                </div>
+                <div><div style="font-size:12px; opacity:0.7">User</div><b id="u-name">Guest</b></div>
+                <div style="background:var(--primary); padding:5px 10px; border-radius:10px; font-size:12px;">Streak: <span id="streak-disp">0</span> 🔥</div>
             </div>
             
+            <div class="glass-card" onclick="switchTab('ai')" style="cursor:pointer; text-align:center; border: 1px solid var(--accent); background: rgba(0, 206, 201, 0.1);">
+                <div style="font-size:40px; margin-bottom:10px;">🤖</div>
+                <h3 style="margin:5px 0;">AI Speaking Mock</h3>
+                <p style="opacity:0.7; font-size:12px; margin-bottom:15px;">Practice with AI Examiner</p>
+                <button class="btn-main" style="margin-top:0;">START MOCK EXAM</button>
+            </div>
+
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b id="current-month">Month</b> <i class="fas fa-calendar-alt"></i>
+                    <span id="current-month" style="font-weight:700;">Month</span><i class="fas fa-calendar-alt"></i>
                 </div>
                 <div class="cal-grid" id="cal-grid"></div>
             </div>
-
-            <button class="btn-main" onclick="switchTab('speaking')">FIND PARTNER 🌍</button>
-            <button class="btn-secondary" onclick="invite()">Invite Friends 🚀</button>
+            
+            <button class="btn-glass" onclick="invite()">INVITE FRIENDS 🚀</button>
         </section>
 
-        <section id="speaking-page" class="hidden">
-            <div class="glass-card" style="text-align:center; padding: 40px 20px;">
-                <div style="font-size:60px; margin-bottom:20px;">🎙️</div>
-                <h2 style="margin-bottom:10px;">Practice Speaking</h2>
-                <p style="opacity:0.6; font-size:14px; margin-bottom:30px;">Find a random partner or practice with AI instantly.</p>
-                
-                <button class="btn-main" style="padding:20px; font-size:18px;" onclick="openSetupModal()">
-                    <i class="fas fa-search"></i> SEARCH PARTNER
-                </button>
+        <section id="ai-page" class="page container hidden">
+            <h2 style="text-align:center; margin-bottom:5px;">AI Examiner 🤖</h2>
+            <p style="text-align:center; font-size:12px; opacity:0.6; margin-bottom:15px;">Powered by Llama 3</p>
+            
+            <div class="glass-card chat-container" id="chat-box">
+                <div class="chat-bubble chat-ai">Hello! I am your AI Examiner. I will ask you IELTS Speaking Part 1 questions. What is your full name?</div>
             </div>
 
-            <h3 style="font-size:14px; margin-top:20px; opacity:0.7;">Recent History</h3>
+            <div class="mic-wrapper">
+                <button id="mic-btn" class="mic-btn" onclick="toggleMic()">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <div id="ai-status" class="ai-status-text">Tap to Speak</div>
+            </div>
+        </section>
+
+        <section id="speaking-page" class="page container hidden">
+            <h2 style="margin-bottom:10px;">Find Partner</h2>
+            <div class="glass-card" style="text-align:center; padding:30px;">
+                <div style="font-size:50px; margin-bottom:15px;">🤝</div>
+                <button class="btn-main" onclick="startRandomCall()">START SEARCHING</button>
+            </div>
+            <h3>Recent Calls</h3>
             <div id="history-list"></div>
         </section>
 
-        <section id="users-page" class="hidden">
+        <section id="users-page" class="page container hidden">
             <h2>Online Users <span style="font-size:14px; color:var(--success)">●</span></h2>
-            <div id="users-list"></div>
+            <div class="glass-card" id="users-list"></div>
         </section>
 
-        <section id="rank-page" class="hidden">
+        <section id="rank-page" class="page container hidden">
             <h2>Leaderboard</h2>
-            <div id="rank-list" class="glass-card"></div>
+            <div class="glass-card" id="rank-list"></div>
         </section>
 
-        <section id="admin-page" class="hidden">
-            <h2 style="color:var(--admin)">Admin Panel</h2>
+        <section id="admin-page" class="page container hidden">
+            <h2 style="color:var(--admin)">Admin Control 🛡️</h2>
             <div class="admin-grid">
-                <div class="admin-card"><div class="admin-val" id="adm-users">-</div>Users</div>
-                <div class="admin-card"><div class="admin-val" id="adm-online">-</div>Online</div>
-                <div class="admin-card"><div class="admin-val" id="adm-waiting">-</div>Waiting</div>
-                <div class="admin-card"><div class="admin-val" id="adm-history">-</div>Calls</div>
+                <div class="admin-card"><div class="admin-val" id="adm-total-users">-</div><div class="admin-label">Users</div></div>
+                <div class="admin-card"><div class="admin-val" id="adm-online">-</div><div class="admin-label">Online</div></div>
+                <div class="admin-card"><div class="admin-val" id="adm-waiting">-</div><div class="admin-label">Waiting</div></div>
+                <div class="admin-card"><div class="admin-val" id="adm-history">-</div><div class="admin-label">Calls</div></div>
             </div>
-            <button class="btn-admin" onclick="loadAdminStats()">Refresh Data</button>
-            <button class="btn-admin" onclick="cleanWaitingRoom()">Clean Waiting Room</button>
-            <button class="btn-admin" onclick="cleanOnlineList()">Clean Online List</button>
+            <h3 style="font-size:14px; margin-top:20px;">Maintenance Tools</h3>
+            <div class="admin-btn-group">
+                <button class="btn-admin" onclick="loadAdminStats()"><i class="fas fa-sync"></i> Refresh Stats</button>
+                <button class="btn-admin" onclick="cleanWaitingRoom()"><i class="fas fa-broom"></i> Clean Waiting Room</button>
+                <button class="btn-admin" onclick="cleanOnlineList()"><i class="fas fa-users-slash"></i> Clear Old Online Users</button>
+            </div>
         </section>
-
     </div>
 
     <nav class="bottom-nav">
-        <div class="nav-item active" id="nav-home" onclick="switchTab('home')"><i class="fas fa-home"></i></div>
-        <div class="nav-item" id="nav-speaking" onclick="switchTab('speaking')"><i class="fas fa-headset"></i></div>
-        <div class="nav-item" id="nav-users" onclick="switchTab('users')"><i class="fas fa-users"></i></div>
-        <div class="nav-item" id="nav-rank" onclick="switchTab('rank')"><i class="fas fa-chart-bar"></i></div>
+        <div class="nav-item active" onclick="switchTab('home')"><i class="fas fa-home"></i></div>
+        <div class="nav-item" onclick="switchTab('ai')"><i class="fas fa-robot"></i></div> <div class="nav-item" onclick="switchTab('speaking')"><i class="fas fa-headset"></i></div>
+        <div class="nav-item" onclick="switchTab('users')"><i class="fas fa-users"></i></div>
+        <div class="nav-item" onclick="switchTab('rank')"><i class="fas fa-trophy"></i></div>
         <div class="nav-item hidden" id="nav-admin" onclick="switchTab('admin')"><i class="fas fa-shield-alt"></i></div>
     </nav>
 
-</div>
+    <script>
+        // ==========================================================
+        // 🔴 DIQQAT! YANGI KALITNI SHU YERGA QO'YING
+        // ==========================================================
+        const GROQ_API_KEY = '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'; // <<-- YANGI KALITNI SHU ' ' ICHIGA TASHLA!
 
-<script>
-    // --- CONFIGURATION ---
-    const GROQ_API_KEY = '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';
-    const ADMIN_ID = 5883103021;
-    const firebaseConfig = { apiKey: "AIzaSyBZUD_8sPguwP6r6s-VYjFnsXnSl4b40Og", authDomain: "ielts-bb0f8.firebaseapp.com", projectId: "ielts-bb0f8", storageBucket: "ielts-bb0f8.firebasestorage.app", messagingSenderId: "228697832712", appId: "1:228697832712:web:38a7e6bdfe26849bcf40bd" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#0f0c29');
-    const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest" };
-    
-    // --- GLOBAL VARIABLES ---
-    const myId = "u_" + Math.floor(Math.random() * 1000000);
-    let myProfile = { gender: 'male', level: 'int' }; 
-    let searchPrefs = { gender: 'any', level: 'any' }; 
-    let aiPersona = 'polite';
-    let isInAiCall = false;
-    let isMicMuted = false;
-    let callTimerInt;
-    let peer, myStream, currentCall, waitingId, startTime, incId;
-    
-    // AI Audio Recorder & VAD
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
-    let speechEvents; // Hark instance
-    let silenceTimer;
-    let isAiSpeaking = false;
-    let availableVoices = []; // For TTS
+        const ADMIN_ID = 5883103021; 
 
-    // TTS Voice Loader (Load instantly)
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = () => {
-            availableVoices = window.speechSynthesis.getVoices();
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZUD_8sPguwP6r6s-VYjFnsXnSl4b40Og",
+            authDomain: "ielts-bb0f8.firebaseapp.com",
+            projectId: "ielts-bb0f8",
+            storageBucket: "ielts-bb0f8.firebasestorage.app",
+            messagingSenderId: "228697832712",
+            appId: "1:228697832712:web:38a7e6bdfe26849bcf40bd"
         };
-    }
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const tg = window.Telegram.WebApp;
+        tg.expand(); tg.setHeaderColor('#0f0c29');
 
-    document.getElementById('u-name').innerText = user.first_name;
+        const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest" };
+        document.getElementById('u-name').innerText = user.first_name;
 
-    // --- UI LOGIC ---
-    function openSetupModal() { document.getElementById('setup-modal').classList.remove('hidden'); }
-    function closeSetupModal() { document.getElementById('setup-modal').classList.add('hidden'); }
+        // --- AI AGENT LOGIC (GROQ + STT + TTS) ---
+        let recognition;
+        let isRecording = false;
 
-    function confirmSetup() {
-        closeSetupModal();
-        if (searchPrefs.gender === 'ai') {
-            startAiCall();
-        } else {
-            startRandomCall();
-        }
-    }
+        // Init Speech Recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
 
-    function setMyProfile(type, val) {
-        myProfile[type] = val;
-        let ids = type==='gender' ? ['my-male','my-female'] : ['my-beg','my-int','my-adv'];
-        ids.forEach(id => document.getElementById(id).classList.remove('active'));
-        document.getElementById(`my-${val}`).classList.add('active');
-    }
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('mic-btn').classList.add('listening');
+                document.getElementById('ai-status').innerText = "Listening...";
+                // Stop TTS if speaking
+                window.speechSynthesis.cancel();
+            };
 
-    function setSearchPref(type, val) {
-        searchPrefs[type] = val;
-        if(type==='gender') {
-            ['g-any','g-male','g-female','g-ai'].forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById(`g-${val}`).classList.add('active');
-            if(val==='ai') document.getElementById('ai-persona-section').classList.remove('hidden');
-            else document.getElementById('ai-persona-section').classList.add('hidden');
-        } else {
-            ['l-any','l-same'].forEach(id => document.getElementById(id).classList.remove('active'));
-            document.getElementById(`l-${val}`).classList.add('active');
-        }
-    }
+            recognition.onend = () => {
+                isRecording = false;
+                document.getElementById('mic-btn').classList.remove('listening');
+            };
 
-    function selectPersona(p) {
-        aiPersona = p;
-        document.getElementById('p-savage').classList.remove('active');
-        document.getElementById('p-polite').classList.remove('active');
-        document.getElementById(`p-${p}`).classList.add('active');
-    }
-
-    function switchTab(t) {
-        document.querySelectorAll('section').forEach(e => e.classList.add('hidden'));
-        document.getElementById(t + '-page').classList.remove('hidden');
-        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-        document.getElementById('nav-' + t).classList.add('active');
-        if(t==='users') loadUsers();
-        if(t==='speaking') loadHistory();
-        if(t==='admin') loadAdminStats();
-    }
-
-    // --- AI VAD LOGIC (HANDS FREE) ---
-    function initVAD(stream) {
-        // Hark listens for volume changes
-        speechEvents = hark(stream, { threshold: -50, interval: 100 });
-
-        speechEvents.on('speaking', function() {
-            if (isAiSpeaking || isMicMuted) return; // Ignore if AI talks or Muted
-            
-            // Visuals
-            document.getElementById('status-text').innerText = "Listening...";
-            document.getElementById('call-avatar').classList.add('listening');
-            document.getElementById('ring').classList.add('ripple');
-            
-            clearTimeout(silenceTimer);
-            startRecording(); // Start capturing audio
-        });
-
-        speechEvents.on('stopped_speaking', function() {
-            if (isAiSpeaking || isMicMuted) return;
-
-            // Visuals
-            document.getElementById('call-avatar').classList.remove('listening');
-            document.getElementById('ring').classList.remove('ripple');
-            
-            // Wait 1.5s silence before processing
-            silenceTimer = setTimeout(() => {
-                stopRecordingAndSend();
-            }, 1500); 
-        });
-    }
-
-    // --- RECORDER LOGIC (MOBILE COMPATIBLE) ---
-    function setupRecorder(stream) {
-        // Choose best mime type
-        let mimeType = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4'; // iOS
-        else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
-
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-        
-        mediaRecorder.ondataavailable = event => {
-            if (event.data.size > 0) audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = async () => {
-            if (audioChunks.length === 0) return;
-            const audioBlob = new Blob(audioChunks, { type: mimeType });
-            audioChunks = [];
-            document.getElementById('status-text').innerText = "Thinking...";
-            await processAudio(audioBlob, mimeType);
-        };
-    }
-
-    function startRecording() {
-        if (mediaRecorder && mediaRecorder.state === 'inactive') {
-            audioChunks = [];
-            mediaRecorder.start();
-        }
-    }
-
-    function stopRecordingAndSend() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-        }
-    }
-
-    async function processAudio(blob, mimeType) {
-        // Prepare file for Groq
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const file = new File([blob], `voice.${ext}`, { type: mimeType });
-        
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("model", "distil-whisper-large-v3-en"); 
-
-        try {
-            // 1. Whisper API (STT)
-            // DO NOT set Content-Type header manually for FormData, axios/browser does it
-            const sttResponse = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
-                headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } 
-            });
-
-            const userText = sttResponse.data.text;
-            if(!userText || userText.trim().length < 2) {
-                document.getElementById('status-text').innerText = "Listening...";
-                return;
-            }
-
-            document.getElementById('ai-subtitle').innerText = "You: " + userText;
-            
-            // 2. Llama API (LLM)
-            await askGroq(userText);
-
-        } catch (error) {
-            console.error(error);
-            document.getElementById('status-text').innerText = "Listening..."; // Silent fail to not break flow
-        }
-    }
-
-    // --- AI & TTS ---
-    function startAiCall() {
-        isInAiCall = true;
-        isMicMuted = false;
-        
-        document.getElementById('call-ui').classList.remove('hidden');
-        document.getElementById('call-partner-name').innerText = "AI Tutor (" + (aiPersona==='savage'?'😈':'😇') + ")";
-        document.getElementById('avatar-emoji').innerText = "🤖";
-        document.getElementById('status-text').innerText = "Connecting...";
-        
-        // Unlock Audio (Mobile Safari Fix)
-        if ('speechSynthesis' in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
-
-        navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-        .then(stream => {
-            myStream = stream;
-            // 1. Init VAD
-            initVAD(stream);
-            // 2. Init Recorder
-            setupRecorder(stream);
-            
-            startTimer();
-            
-            // Greeting
-            setTimeout(() => {
-                let text = aiPersona === 'savage' ? "Finally. I am your examiner. Introduce yourself." : "Hello! I'm your Speaking Buddy. Please introduce yourself.";
-                speakAI(text);
-            }, 1000);
-        })
-        .catch(e => { alert("Mic Error: " + e.message); endCall(); });
-    }
-
-    async function askGroq(txt) {
-        try {
-            const sys = aiPersona === 'savage' ? "You are a rude IELTS examiner. Roast mistakes. Short answers." : "You are a kind IELTS examiner. Keep answers short.";
-            const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-                model: "llama-3.3-70b-versatile",
-                messages: [{role:"system", content:sys}, {role:"user", content:txt}]
-            }, { headers: {'Authorization': `Bearer ${GROQ_API_KEY}`} });
-            speakAI(res.data.choices[0].message.content);
-        } catch(e) { speakAI("Connection error."); }
-    }
-
-    function speakAI(text) {
-        document.getElementById('ai-subtitle').innerText = text;
-        document.getElementById('status-text').innerText = "AI Speaking...";
-        
-        isAiSpeaking = true; // Block Mic
-        document.getElementById('call-avatar').classList.add('speaking');
-
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'en-US';
-
-            // Voice Selection logic
-            if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
-            
-            if (aiPersona === 'savage') {
-                u.rate = 1.15; u.pitch = 0.8;
-                const v = availableVoices.find(v => (v.name.includes('Male') || v.name.includes('Google US')) && v.lang.includes('en'));
-                if(v) u.voice = v;
-            } else {
-                u.rate = 0.9; u.pitch = 1.1;
-                const v = availableVoices.find(v => (v.name.includes('Female') || v.name.includes('Samantha')) && v.lang.includes('en'));
-                if(v) u.voice = v;
-            }
-            
-            u.onend = () => {
-                isAiSpeaking = false; // Unblock Mic
-                document.getElementById('call-avatar').classList.remove('speaking');
-                document.getElementById('status-text').innerText = "Listening...";
-                // Re-arm VAD
-                if(speechEvents) speechEvents.start();
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                addChatMessage(transcript, 'user');
+                askGroqAI(transcript);
             };
             
-            // Stop VAD while AI speaks
-            if(speechEvents) speechEvents.stop();
+            recognition.onerror = (e) => { 
+                document.getElementById('ai-status').innerText = "Error: " + e.error;
+                // alert("Microphone Error: " + e.error); 
+            };
+        }
+
+        function toggleMic() {
+            if (!recognition) { alert("Speech Recognition not supported in this browser. Use Chrome or Android."); return; }
+            if (isRecording) recognition.stop();
+            else recognition.start();
+        }
+
+        function addChatMessage(text, sender) {
+            const box = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = `chat-bubble chat-${sender}`;
+            div.innerText = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 1; 
+                utterance.pitch = 1;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        async function askGroqAI(userText) {
+            document.getElementById('ai-status').innerText = "Thinking...";
             
-            window.speechSynthesis.speak(u);
+            try {
+                const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+                    model: "llama-3.3-70b-versatile", // Use the versatile model for general use
+                    messages: [
+                        { role: "system", content: "You are a professional IELTS Speaking Examiner. Your goal is to simulate a Part 1 exam. Keep your responses short (max 2 sentences). Ask one follow-up question at the end of your response. Do not use markdown formatting." },
+                        { role: "user", content: userText }
+                    ]
+                }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
+
+                const aiText = response.data.choices[0].message.content;
+                addChatMessage(aiText, 'ai');
+                document.getElementById('ai-status').innerText = "Tap to Speak";
+                speakText(aiText);
+
+            } catch (error) {
+                console.error(error);
+                let msg = "Error: " + error.message;
+                if(error.response && error.response.status === 401) {
+                    msg = "API Key Error (401). Please update key.";
+                }
+                addChatMessage(msg, 'ai');
+                document.getElementById('ai-status').innerText = "Error";
+            }
         }
-    }
 
-    // --- HUMAN CALLS ---
-    async function startRandomCall() {
-        if(!myStream) { 
-             try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } 
-             catch(e) { alert("Mic required!"); return; }
+        // --- GLOBAL VARIABLES (EXISTING) ---
+        const myId = "u_" + Math.floor(Math.random() * 1000000);
+        let peer, myStream, currentCall, waitingId, timerInt, startTime;
+        let isMuted = false;
+
+        const topics = [
+            {t:"Describe a book", p:["What book?","Who wrote?","Why like?"]},
+            {t:"Describe a holiday", p:["Where?","How?","What did?"]},
+            {t:"Describe an idol", p:["Who?","Why famous?","Why inspire?"]},
+            {t:"Describe a skill", p:["What skill?","Why useful?","How learn?"]},
+            {t:"Describe a gift", p:["What was it?","Who gave?","Why special?"]}
+        ];
+
+        // --- STARTUP LOGIC ---
+        async function enterApp() {
+            try {
+                // Check if user has mic support
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    // Just warn, don't crash
+                    console.warn("Mic not supported or no HTTPS");
+                } else {
+                     myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+                }
+
+                document.getElementById('start-overlay').classList.add('hidden');
+                
+                initPeer(); 
+                loadStats(); 
+                renderCalendar(); 
+                goOnline(); 
+                listenIncoming();
+                
+                if (user.id === ADMIN_ID) {
+                    document.getElementById('nav-admin').classList.remove('hidden');
+                }
+            } catch (e) { 
+                alert("Start Error: " + e.message + "\nCheck HTTPS."); 
+                document.getElementById('start-overlay').classList.add('hidden'); // Let them in anyway
+            }
         }
-        document.getElementById('search-overlay').classList.remove('hidden');
-        
-        try {
-            const old = await db.collection('waiting_room').where('time', '<', Date.now()-60000).get();
-            old.forEach(d => d.ref.delete());
 
-            const snap = await db.collection('waiting_room').get();
-            let match = null;
-
-            snap.forEach(doc => {
-                const partner = doc.data();
-                if(partner.peerId === peer.id) return; 
-                if ((searchPrefs.gender==='any' || searchPrefs.gender===partner.gender) && 
-                    (partner.targetGender==='any' || partner.targetGender===myProfile.gender)) {
-                    match = { id: doc.id, ...partner };
+        function initPeer() {
+            peer = new Peer(myId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
+            peer.on('call', call => {
+                document.getElementById('search-overlay').classList.add('hidden');
+                if(waitingId) { db.collection('waiting_room').doc(waitingId).delete(); waitingId = null; }
+                if (myStream) {
+                    call.answer(myStream);
+                    setupCall(call, call.metadata?.name);
+                } else {
+                    alert("No mic stream available to answer.");
                 }
             });
+        }
 
-            if (match) {
-                await db.collection('waiting_room').doc(match.id).delete();
-                const call = peer.call(match.peerId, myStream, { metadata: { name: user.first_name } });
-                setupHumanCall(call, match.name);
-            } else {
-                waitingId = (await db.collection('waiting_room').add({
-                    peerId: peer.id, name: user.first_name,
-                    gender: myProfile.gender, level: myProfile.level,
-                    targetGender: searchPrefs.gender, targetLevel: searchPrefs.level,
-                    time: Date.now()
-                })).id;
-                window.addEventListener('beforeunload', () => db.collection('waiting_room').doc(waitingId).delete());
-            }
-        } catch(e) { alert("Error: " + e.message); cancelSearch(); }
-    }
-
-    function setupHumanCall(call, name) {
-        currentCall = call;
-        document.getElementById('search-overlay').classList.add('hidden');
-        document.getElementById('call-ui').classList.remove('hidden');
-        document.getElementById('call-partner-name').innerText = name || "User";
-        document.getElementById('avatar-emoji').innerText = "👤";
-        document.getElementById('ai-subtitle').innerText = "Connected via PeerJS";
-        document.getElementById('status-text').innerText = "Connected";
-
-        call.on('stream', s => { 
-            document.getElementById('remote-audio').srcObject = s; 
-            startTimer();
-        });
-        call.on('close', endCall);
-    }
-
-    function cancelSearch() {
-        if(waitingId) db.collection('waiting_room').doc(waitingId).delete();
-        document.getElementById('search-overlay').classList.add('hidden');
-    }
-
-    // --- DIRECT CALLS ---
-    async function startDirect(tid, name) {
-        if(!myStream) try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e){return;}
-        document.getElementById('search-overlay').classList.remove('hidden');
-        const doc = await db.collection('calls').add({ from: peer.id, fromName: user.first_name, to: tid, status: 'pending', time: Date.now() });
-        doc.onSnapshot(s => {
-            if(s.data()?.status === 'accepted') {
-                const call = peer.call(tid, myStream, { metadata: { name: user.first_name } });
-                setupHumanCall(call, name);
-            } else if(s.data()?.status === 'rejected') {
-                alert("Declined"); cancelSearch();
-            }
-        });
-    }
-
-    function listenIncoming() {
-        db.collection('calls').where('to', '==', peer.id).where('status', '==', 'pending').onSnapshot(s => {
-            s.docChanges().forEach(c => {
-                if(c.type === 'added' && Date.now() - c.doc.data().time < 30000) {
-                    incId = c.doc.id;
-                    document.getElementById('inc-name').innerText = c.doc.data().fromName;
-                    document.getElementById('incoming-modal').classList.remove('hidden');
+        // --- MATCHING ---
+        async function startRandomCall() {
+            if(!myStream) { alert("Mic required for calls."); return; }
+            document.getElementById('search-overlay').classList.remove('hidden');
+            document.getElementById('search-status').innerText = "Connecting...";
+            try {
+                const old = await db.collection('waiting_room').where('time', '<', Date.now() - 60000).get();
+                old.forEach(d => d.ref.delete());
+                const snap = await db.collection('waiting_room').limit(10).get();
+                let match = null;
+                snap.forEach(doc => { const d = doc.data(); if (d.peerId !== myId) match = { id: doc.id, ...d }; });
+                if (match) {
+                    document.getElementById('search-status').innerText = "Found " + match.name + "! Calling...";
+                    await db.collection('waiting_room').doc(match.id).delete();
+                    setTimeout(() => { const call = peer.call(match.peerId, myStream, { metadata: { name: user.first_name } }); setupCall(call, match.name); }, 500);
+                } else {
+                    document.getElementById('search-status').innerText = "Waiting for partner...";
+                    const doc = await db.collection('waiting_room').add({ peerId: myId, name: user.first_name, time: Date.now() });
+                    waitingId = doc.id;
+                    window.addEventListener('beforeunload', () => doc.delete());
                 }
-            });
-        });
-    }
-    
-    async function acceptCall() { 
-        document.getElementById('incoming-modal').classList.add('hidden'); 
-        await db.collection('calls').doc(incId).update({ status: 'accepted' }); 
-    }
-    function rejectCall() { 
-        document.getElementById('incoming-modal').classList.add('hidden'); 
-        if(incId) db.collection('calls').doc(incId).update({ status: 'rejected' }); 
-    }
+            } catch (e) { alert("Match Error: " + e.message); }
+        }
 
-    // --- UTILS ---
-    function endCall() {
-        isCallActive = false;
-        if(isInAiCall) { 
-            window.speechSynthesis.cancel(); 
-            if(speechEvents) speechEvents.stop();
-            if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-            isInAiCall = false; 
-        } else { 
-            if(currentCall) currentCall.close(); 
+        function cancelSearch() {
+            if(waitingId) { db.collection('waiting_room').doc(waitingId).delete(); waitingId = null; }
+            document.getElementById('search-overlay').classList.add('hidden');
+        }
+
+        // --- CALL UI ---
+        function setupCall(call, name) {
+            currentCall = call;
+            const audio = document.getElementById('remote-audio');
+            document.getElementById('call-overlay').classList.remove('hidden');
+            document.getElementById('search-overlay').classList.add('hidden');
+            document.getElementById('call-partner').innerText = name || "Partner";
+            const t = topics[Math.floor(Math.random() * topics.length)];
+            document.getElementById('cue-topic').innerText = t.t;
+            document.getElementById('cue-points').innerHTML = t.p.map(x=>`<li>${x}</li>`).join('');
+            call.on('stream', remote => { audio.srcObject = remote; audio.play(); startTimer(); });
+            call.on('close', endCall); call.on('error', e => endCall());
+        }
+
+        function endCall() {
+            if(currentCall) currentCall.close();
             if(waitingId) db.collection('waiting_room').doc(waitingId).delete();
-            db.collection('history').add({user:user.id, partner:document.getElementById('call-partner-name').innerText, time:Date.now()});
-            loadHistory();
+            if(startTime && (Date.now() - startTime) > 2000) {
+                db.collection('history').add({ user: user.id, dur: Math.floor((Date.now()-startTime)/1000), partner: document.getElementById('call-partner').innerText, time: Date.now() });
+            }
+            document.getElementById('call-overlay').classList.add('hidden');
+            document.getElementById('search-overlay').classList.add('hidden');
+            clearInterval(timerInt); startTime = null; loadHistory();
         }
-        // Stop Tracks to release mic
-        if(myStream) myStream.getTracks().forEach(t => t.stop());
-        myStream = null;
-        
-        document.getElementById('call-ui').classList.add('hidden');
-        clearInterval(callTimerInt);
-    }
 
-    function toggleMute() {
-        if (!myStream) return;
-        isMicMuted = !isMicMuted;
-        myStream.getAudioTracks()[0].enabled = !isMicMuted;
-        
-        const btn = document.getElementById('btn-toggle-mic');
-        if(isMicMuted) {
-            btn.classList.add('muted'); btn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-            document.getElementById('status-text').innerText = "Muted";
-            if(isInAiCall && speechEvents) speechEvents.stop();
-        } else {
-            btn.classList.remove('muted'); btn.innerHTML = '<i class="fas fa-microphone"></i>';
-            document.getElementById('status-text').innerText = "Listening...";
-            if(isInAiCall && speechEvents) speechEvents.start();
+        // --- DIRECT ---
+        async function startDirect(tid, name) {
+            if(!myStream) { alert("Mic required."); return; }
+            document.getElementById('search-overlay').classList.remove('hidden');
+            document.getElementById('search-status').innerText = "Calling " + name + "...";
+            const doc = await db.collection('calls').add({ from: myId, fromName: user.first_name, to: tid, status: 'pending', time: Date.now() });
+            doc.onSnapshot(s => {
+                if(s.data()?.status === 'accepted') {
+                    const call = peer.call(tid, myStream, { metadata: { name: user.first_name } });
+                    setupCall(call, name);
+                } else if(s.data()?.status === 'rejected') { alert("User declined."); cancelSearch(); }
+            });
         }
-    }
 
-    function startTimer() {
-        let sec = 0; clearInterval(callTimerInt);
-        callTimerInt = setInterval(() => {
-            sec++;
-            document.getElementById('call-timer').innerText = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
-        }, 1000);
-    }
-
-    // --- INIT ---
-    async function enterApp() {
-        // Pre-request not needed here, do it on call start to save battery/status bar
-        document.getElementById('start-overlay').classList.add('hidden');
-        switchTab('home');
-
-        peer = new Peer(myId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
-        peer.on('call', call => {
-            cancelSearch();
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
-                myStream = s;
-                call.answer(myStream); 
-                setupHumanCall(call, call.metadata?.name);
+        let incId = null;
+        function listenIncoming() {
+            db.collection('calls').where('to', '==', myId).where('status', '==', 'pending').onSnapshot(s => {
+                s.docChanges().forEach(c => {
+                    if(c.type === 'added' && Date.now() - c.doc.data().time < 30000) {
+                        incId = c.doc.id;
+                        document.getElementById('inc-name').innerText = c.doc.data().fromName;
+                        document.getElementById('incoming-modal').classList.remove('hidden');
+                    }
+                });
             });
-        });
+        }
+        async function acceptCall() { document.getElementById('incoming-modal').classList.add('hidden'); await db.collection('calls').doc(incId).update({ status: 'accepted' }); }
+        function rejectCall() { document.getElementById('incoming-modal').classList.add('hidden'); if(incId) db.collection('calls').doc(incId).update({ status: 'rejected' }); }
 
-        goOnline(); listenIncoming(); loadStats(); renderCalendar(); loadHistory(); loadRank();
-        if(user.id === ADMIN_ID) document.getElementById('nav-admin').classList.remove('hidden');
-    }
+        // --- UTILS ---
+        function startTimer() { startTime = Date.now(); timerInt = setInterval(() => { const d = Math.floor((Date.now()-startTime)/1000); document.getElementById('call-timer').innerText = `${Math.floor(d/60)}:${String(d%60).padStart(2,'0')}`; }, 1000); }
+        function toggleMute() { isMuted = !isMuted; myStream.getAudioTracks()[0].enabled = !isMuted; }
+        
+        function switchTab(t) {
+            document.querySelectorAll('.page').forEach(e => e.classList.add('hidden'));
+            document.getElementById(t + '-page').classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(e => { e.classList.remove('active'); e.classList.remove('admin-active'); });
+            
+            if (t === 'admin') {
+                document.getElementById('nav-admin').classList.add('admin-active');
+                loadAdminStats();
+            } else {
+                event.currentTarget.classList.add('active');
+            }
+            if(t==='users') loadUsers(); if(t==='speaking') loadHistory(); if(t==='rank') loadRank();
+        }
 
-    function goOnline() {
-        db.collection('online').doc(String(user.id)).set({name: user.first_name, peerId: myId, last: Date.now()});
-        setInterval(() => db.collection('online').doc(String(user.id)).update({last: Date.now()}), 30000);
-    }
-
-    // --- DATA LOADERS ---
-    function loadUsers() {
-        db.collection('online').orderBy('last', 'desc').onSnapshot(s => {
-            let h = "";
-            s.forEach(doc => {
-                const d = doc.data();
-                if(Date.now() - d.last > 60000) return; 
-                if(d.peerId !== myId) {
-                    h += `<div class="glass-card user-row"><div class="user-info"><div class="user-avatar">👤</div><div><b>${d.name}</b><br><span style="font-size:10px; color:var(--success)">● Online</span></div></div><button class="btn-call-small" onclick="startDirect('${d.peerId}', '${d.name}')"><i class="fas fa-phone"></i></button></div>`;
-                }
+        function goOnline() {
+            db.collection('online').doc(user.id.toString()).set({ name: user.first_name, peerId: myId, last: Date.now() }).then(() => {
+                setInterval(() => { db.collection('online').doc(user.id.toString()).update({ last: Date.now() }); }, 30000);
             });
-            document.getElementById('users-list').innerHTML = h || "<div style='text-align:center; opacity:0.5; margin-top:20px'>No other users online</div>";
-        });
-    }
-    function loadHistory() { db.collection('history').where('user','==',user.id).limit(5).get().then(s => { let h = ""; s.forEach(d => { let t = new Date(d.data().time).toLocaleTimeString(); h += `<div class="glass-card" style="padding:10px; font-size:13px;"><b>${d.data().partner}</b> <span style="float:right; opacity:0.5">${t}</span></div>`; }); document.getElementById('history-list').innerHTML = h; }); }
-    function loadStats() { db.collection('users').doc(String(user.id)).get().then(d => { if(d.exists) document.getElementById('streak-disp').innerText = d.data().streak||0; }); }
-    function loadRank() { db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => { const r = document.getElementById('rank-list'); r.innerHTML = ""; let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px;"><b>#${i} ${v.name}</b> ${v.streak} 🔥</div>`; i++; }); }); }
-    function renderCalendar() { const g = document.getElementById('cal-grid'); const n = new Date(); document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' }); for(let i=1; i<=31; i++) { const c = i===n.getDate()?'today':''; g.innerHTML += `<div class="day ${c}">${i}</div>`; } }
-    function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
-    async function loadAdminStats() { if(user.id !== ADMIN_ID) return; document.getElementById('adm-users').innerText = (await db.collection('users').get()).size; document.getElementById('adm-online').innerText = (await db.collection('online').get()).size; document.getElementById('adm-waiting').innerText = (await db.collection('waiting_room').get()).size; document.getElementById('adm-history').innerText = (await db.collection('history').get()).size; }
-    async function cleanWaitingRoom() { if(confirm("Clean?")) (await db.collection('waiting_room').get()).forEach(d=>d.ref.delete()); }
-    async function cleanOnlineList() { if(confirm("Clean?")) (await db.collection('online').get()).forEach(d=>d.ref.delete()); }
-</script>
+        }
+
+        function loadUsers() {
+            db.collection('online').orderBy('last', 'desc').onSnapshot(s => {
+                const l = document.getElementById('users-list'); l.innerHTML = "";
+                s.forEach(doc => {
+                    const v = doc.data();
+                    if(Date.now() - v.last > 60000) { db.collection('online').doc(doc.id).delete(); return; }
+                    if(v.peerId !== myId) {
+                        l.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between; align-items:center;"><b>${v.name}</b> <button class="btn-main" style="width:auto;margin:0;padding:5px 15px;font-size:12px;" onclick="startDirect('${v.peerId}','${v.name}')">CALL</button></div>`;
+                    }
+                });
+            });
+        }
+
+        // --- ADMIN LOGIC ---
+        async function loadAdminStats() {
+            if (user.id !== ADMIN_ID) return;
+            document.getElementById('adm-total-users').innerText = (await db.collection('users').get()).size;
+            document.getElementById('adm-online').innerText = (await db.collection('online').get()).size;
+            document.getElementById('adm-waiting').innerText = (await db.collection('waiting_room').get()).size;
+            document.getElementById('adm-history').innerText = (await db.collection('history').get()).size;
+        }
+        async function cleanWaitingRoom() { if(!confirm("Clean waiting room?")) return; (await db.collection('waiting_room').get()).forEach(d => d.ref.delete()); alert("Done"); loadAdminStats(); }
+        async function cleanOnlineList() { if(!confirm("Clean online list?")) return; (await db.collection('online').get()).forEach(d => d.ref.delete()); alert("Done"); loadAdminStats(); }
+
+        // --- LOADERS ---
+        function loadStats() {
+            const ref = db.collection('users').doc(String(user.id));
+            const today = new Date().toDateString();
+            ref.get().then(d => {
+                let s = 1;
+                if(d.exists) { const v = d.data(); const y = new Date(); y.setDate(y.getDate()-1); if(v.last===today) s=v.streak; else if(v.last===y.toDateString()) s=v.streak+1; }
+                ref.set({ name: user.first_name, streak: s, last: today }, { merge: true });
+                document.getElementById('streak-disp').innerText = s;
+            });
+        }
+        function loadHistory() {
+            const h = document.getElementById('history-list'); h.innerHTML = '<div style="text-align:center; opacity:0.5;">Loading...</div>';
+            db.collection('history').where('user', '==', user.id).limit(10).get().then(s => {
+                h.innerHTML = "";
+                if(s.empty) { h.innerHTML = '<div style="text-align:center; opacity:0.5;">No recent calls</div>'; return; }
+                s.forEach(d => { const v = d.data(); const t = new Date(v.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); h.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between; font-size:14px;"><div><b>${v.partner}</b> <span style="font-size:10px; opacity:0.6">${t}</span></div><div>${Math.floor(v.dur/60)}:${String(v.dur%60).padStart(2,'0')}</div></div>`; });
+            });
+        }
+        function loadRank() { db.collection('users').orderBy('streak', 'desc').limit(10).get().then(s => { const r = document.getElementById('rank-list'); r.innerHTML = ""; let i=1; s.forEach(d => { const v = d.data(); r.innerHTML += `<div class="glass-card" style="padding:10px; display:flex; justify-content:space-between;"><b style="color:#ffd700">#${i} ${v.name}</b><span>${v.streak} 🔥</span></div>`; i++; }); }); }
+        function renderCalendar() { const g = document.getElementById('cal-grid'); const n = new Date(); document.getElementById('current-month').innerText = n.toLocaleString('default', { month: 'long' }); ['S','M','T','W','T','F','S'].forEach(d => g.innerHTML += `<div>${d}</div>`); for(let i=1; i<=31; i++) { const c = i===n.getDate()?'today':''; g.innerHTML += `<div class="day ${c}">${i}</div>`; } }
+        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
+    </script>
 </body>
 </html>
