@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Speaking Tutor & AI</title>
+    <title>Speaking Tutor AI</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -15,215 +15,182 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
+        /* GLOBAL */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
-        :root { --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 100%); --glass: rgba(255, 255, 255, 0.05); --primary: #6c5ce7; --accent: #00cec9; --text: #ffffff; --danger: #ff7675; --success: #00b894; --admin: #e17055; }
-        body { background: var(--bg-gradient); color: var(--text); font-family: 'Poppins', sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; }
-        #app { height: 100%; overflow-y: auto; padding-bottom: 90px; }
+        :root { --bg: linear-gradient(135deg, #0f0c29 0%, #302b63 100%); --glass: rgba(255, 255, 255, 0.08); --primary: #6c5ce7; --text: #fff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* LAYOUT */
+        #app { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 140px; }
         .hidden { display: none !important; }
-        .container { padding: 20px; max-width: 500px; margin: 0 auto; }
-        .glass-card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; margin-bottom: 15px; backdrop-filter: blur(10px); }
-        .btn-main { background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 100%); color: white; border: none; padding: 16px; width: 100%; border-radius: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-        .btn-glass { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 14px; width: 100%; border-radius: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .glass-card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 15px; margin-bottom: 15px; }
+        .btn-main { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; font-weight: 600; margin-top: 10px; }
         
-        .chat-container { height: 400px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 15px; border: 1px solid rgba(255,255,255,0.1); }
-        .chat-bubble { padding: 12px 18px; border-radius: 18px; max-width: 85%; font-size: 14px; line-height: 1.5; animation: popIn 0.3s ease; }
-        @keyframes popIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-        .chat-ai { background: rgba(255,255,255,0.1); align-self: flex-start; border-bottom-left-radius: 4px; }
-        .chat-user { background: linear-gradient(135deg, #6c5ce7, #a29bfe); align-self: flex-end; border-bottom-right-radius: 4px; }
-        
-        .mic-wrapper { position: fixed; bottom: 95px; left: 0; width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; pointer-events: none; }
-        .mic-btn { pointer-events: auto; width: 75px; height: 75px; border-radius: 50%; border: none; color: white; font-size: 30px; background: linear-gradient(135deg, #00b894, #00cec9); box-shadow: 0 0 25px rgba(0, 184, 148, 0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-        .mic-btn.listening { background: #ff7675; box-shadow: 0 0 30px rgba(255, 118, 117, 0.6); animation: pulse 1.5s infinite; }
-        .ai-status-text { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px; margin-top: 10px; color: white; pointer-events: auto; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.4); } 70% { box-shadow: 0 0 0 25px rgba(255, 118, 117, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0); } }
+        /* CHAT BOX */
+        .chat-container { height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+        .bubble { padding: 10px 15px; border-radius: 15px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+        .ai { background: rgba(255,255,255,0.1); align-self: flex-start; border-bottom-left-radius: 2px; }
+        .user { background: var(--primary); align-self: flex-end; border-bottom-right-radius: 2px; }
 
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(15, 12, 41, 0.95); padding: 15px 0; display: flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
-        .nav-item { color: #636e72; font-size: 22px; transition: 0.2s; }
-        .nav-item.active { color: var(--primary); transform: translateY(-3px); }
-        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .admin-card { background: rgba(225, 112, 85, 0.1); border: 1px solid rgba(225, 112, 85, 0.3); border-radius: 16px; padding: 15px; text-align: center; }
-        .full-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5000; background: #0f0c29; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .call-ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #1e272e 0%, #000 100%); z-index: 4000; display: flex; flex-direction: column; padding: 30px 20px; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; margin-top: 10px; }
-        .day.today { background: var(--primary); color: white; font-weight: bold; padding: 5px; border-radius: 5px; }
+        /* CONTROLS (MIC + INPUT) */
+        .controls-area {
+            position: fixed; bottom: 70px; left: 0; width: 100%;
+            background: rgba(15, 12, 41, 0.95); padding: 10px;
+            display: flex; align-items: center; gap: 10px; z-index: 100;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .text-input {
+            flex-grow: 1; padding: 12px; border-radius: 20px; border: none;
+            background: rgba(255,255,255,0.1); color: white; font-size: 14px;
+        }
+        .mic-btn {
+            width: 50px; height: 50px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #00b894, #00cec9); color: white; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 15px rgba(0, 184, 148, 0.4); transition: 0.3s;
+        }
+        .mic-btn.listening { background: #ff7675; animation: pulse 1.5s infinite; }
+        
+        /* DEBUG CONSOLE (Telefonda xatoni ko'rish uchun) */
+        #debug-console {
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8);
+            color: #ff7675; font-size: 10px; padding: 5px; z-index: 9999; display: none;
+        }
+
+        /* NAV */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #0f0c29; padding: 15px 0; display: flex; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
+        .nav-item { color: #636e72; font-size: 24px; }
+        .nav-item.active { color: var(--primary); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 118, 117, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0); } }
     </style>
 </head>
 <body>
 
-    <div id="start-overlay" class="full-overlay">
-        <div style="font-size: 70px; margin-bottom: 20px;">👋</div>
-        <h1>Speaking Tutor</h1>
-        <p style="opacity:0.7">Practice IELTS Speaking</p>
-        <button class="btn-main" style="width:200px" onclick="enterApp()">START</button>
-    </div>
-
-    <div id="search-overlay" class="full-overlay hidden">
-        <div class="radar-box"><div style="font-size:40px;">🌍</div></div>
-        <div id="search-status" style="color:var(--accent); margin-bottom:20px;">Searching...</div>
-        <button class="btn-main btn-danger" style="width:150px;" onclick="cancelSearch()">CANCEL</button>
-    </div>
-
-    <div id="call-overlay" class="call-ui hidden">
-        <h2 id="call-partner" style="text-align:center;">Partner</h2>
-        <div id="call-timer" style="text-align:center; color:var(--success); font-size:20px;">00:00</div>
-        <div class="glass-card" style="margin-top:20px; flex-grow:1;">
-            <b style="color:var(--primary)">TOPIC:</b> <span id="cue-topic">Loading...</span>
-            <ul id="cue-points" style="padding-left:20px; font-size:14px; color:#ccc;"></ul>
-        </div>
-        <audio id="remote-audio" autoplay playsinline></audio>
-        <div style="display:flex; justify-content:center; gap:20px; margin-top:20px;">
-            <button onclick="endCall()" style="width:60px; height:60px; border-radius:50%; background:var(--danger); border:none; color:white;"><i class="fas fa-phone-slash"></i></button>
-        </div>
-    </div>
-
-    <div id="incoming-modal" class="full-overlay hidden" style="background:rgba(0,0,0,0.95);">
-        <h2 id="inc-name">User</h2>
-        <div style="display:flex; gap:30px;">
-            <button onclick="rejectCall()" style="width:70px; height:70px; border-radius:50%; background:var(--danger); border:none;"><i class="fas fa-times"></i></button>
-            <button onclick="acceptCall()" style="width:70px; height:70px; border-radius:50%; background:var(--success); border:none;"><i class="fas fa-phone"></i></button>
-        </div>
-    </div>
+    <div id="debug-console">Debug Log:</div>
 
     <div id="app">
-        <section id="home-page" class="page container">
-            <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center;">
-                <div><div style="font-size:12px; opacity:0.7">User</div><b id="u-name">Guest</b></div>
-                <div style="background:var(--primary); padding:5px 10px; border-radius:10px; font-size:12px;">Streak: <span id="streak-disp">0</span> 🔥</div>
+        <section id="ai-page" class="page">
+            <div style="text-align:center; margin-bottom:10px;">
+                <h2>AI Examiner 🤖</h2>
+                <p style="font-size:11px; opacity:0.6;">Powered by Groq Llama 3</p>
             </div>
-            <div class="glass-card" onclick="switchTab('ai')" style="cursor:pointer; text-align:center; border: 1px solid var(--accent); background: rgba(0, 206, 201, 0.1);">
-                <div style="font-size:40px; margin-bottom:10px;">🤖</div>
-                <h3>AI Examiner</h3>
-                <p style="opacity:0.7; font-size:12px;">Mock Exam (Llama 3)</p>
-                <button class="btn-main" style="margin-top:5px;">START</button>
-            </div>
-            <div class="glass-card">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <span id="current-month" style="font-weight:700;">Month</span><i class="fas fa-calendar-alt"></i>
-                </div>
-                <div class="cal-grid" id="cal-grid"></div>
-            </div>
-            <button class="btn-glass" onclick="invite()">INVITE FRIENDS 🚀</button>
-        </section>
-
-        <section id="ai-page" class="page container hidden">
-            <h2 style="text-align:center; margin-bottom:5px;">AI Examiner 🤖</h2>
-            <div class="glass-card chat-container" id="chat-box">
-                <div class="chat-bubble chat-ai">Hello! I am your AI Examiner. I will ask you IELTS Speaking Part 1 questions. What is your full name?</div>
-            </div>
-            <div class="mic-wrapper">
-                <button id="mic-btn" class="mic-btn" onclick="toggleMic()"><i class="fas fa-microphone"></i></button>
-                <div id="ai-status" class="ai-status-text">Tap to Speak</div>
+            
+            <div id="chat-box" class="chat-container">
+                <div class="bubble ai">Hello! I am your IELTS Examiner. What is your full name?</div>
             </div>
         </section>
 
-        <section id="speaking-page" class="page container hidden">
-            <h2>Find Partner</h2>
-            <div class="glass-card" style="text-align:center; padding:30px;">
-                <div style="font-size:50px; margin-bottom:15px;">🤝</div>
-                <button class="btn-main" onclick="startRandomCall()">START SEARCHING</button>
-            </div>
-            <div id="search-status" style="text-align:center; margin-top:10px; color:var(--accent);" class="hidden">Searching...</div>
-            <h3>Recent Calls</h3>
-            <div id="history-list"></div>
-        </section>
+        </div>
 
-        <section id="users-page" class="page container hidden"><h2>Online Users</h2><div class="glass-card" id="users-list"></div></section>
-        <section id="rank-page" class="page container hidden"><h2>Leaderboard</h2><div class="glass-card" id="rank-list"></div></section>
-        <section id="admin-page" class="page container hidden">
-            <h2>Admin</h2>
-            <div class="admin-grid">
-                <div class="admin-card"><div class="admin-val" id="adm-users">-</div><div class="admin-label">Users</div></div>
-                <div class="admin-card"><div class="admin-val" id="adm-online">-</div><div class="admin-label">Online</div></div>
-            </div>
-            <button class="btn-glass" onclick="loadAdminStats()">Refresh</button>
-        </section>
+    <div class="controls-area">
+        <input type="text" id="msg-input" class="text-input" placeholder="Type here..." onkeypress="handleEnter(event)">
+        <button class="mic-btn" style="background:#6c5ce7;" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+        <button id="mic-btn" class="mic-btn" ontouchstart="toggleMic()" onclick="toggleMic()">
+            <i class="fas fa-microphone"></i>
+        </button>
     </div>
 
     <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('home')"><i class="fas fa-home"></i></div>
-        <div class="nav-item" onclick="switchTab('ai')"><i class="fas fa-robot"></i></div>
-        <div class="nav-item" onclick="switchTab('speaking')"><i class="fas fa-headset"></i></div>
-        <div class="nav-item" onclick="switchTab('users')"><i class="fas fa-users"></i></div>
-        <div class="nav-item" onclick="switchTab('rank')"><i class="fas fa-trophy"></i></div>
-        <div class="nav-item hidden" id="nav-admin" onclick="switchTab('admin')"><i class="fas fa-shield-alt"></i></div>
+        <div class="nav-item active"><i class="fas fa-robot"></i></div>
+        <div class="nav-item"><i class="fas fa-home"></i></div>
     </nav>
 
     <script>
-        // ==========================================================
-        // 🔴 DIQQAT! GROQ KALITNI SHU YERGA QO'YING
-        // ==========================================================
-        const GROQ_API_KEY = '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'; // Sizning kalitingiz
+        // --- 1. SOZLAMALAR ---
+        const GROQ_API_KEY = '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'; // Kalitingiz
+        const user = window.Telegram?.WebApp?.initDataUnsafe?.user || { first_name: "Guest" };
+        window.Telegram?.WebApp?.expand();
 
-        const ADMIN_ID = 5883103021; 
-
-        // Firebase
-        const firebaseConfig = { apiKey: "AIzaSyBZUD_8sPguwP6r6s-VYjFnsXnSl4b40Og", authDomain: "ielts-bb0f8.firebaseapp.com", projectId: "ielts-bb0f8", storageBucket: "ielts-bb0f8.firebasestorage.app", messagingSenderId: "228697832712", appId: "1:228697832712:web:38a7e6bdfe26849bcf40bd" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const tg = window.Telegram.WebApp; tg.expand(); tg.setHeaderColor('#0f0c29');
-        const user = tg.initDataUnsafe?.user || { id: 99999, first_name: "Guest" };
-        document.getElementById('u-name').innerText = user.first_name;
-
-        // --- AI LOGIC (DEBUG MODE) ---
-        let recognition, isRecording = false;
-
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.continuous = false;
-            recognition.interimResults = false;
-
-            recognition.onstart = () => { isRecording = true; document.getElementById('mic-btn').classList.add('listening'); document.getElementById('ai-status').innerText = "Listening..."; window.speechSynthesis.cancel(); };
-            recognition.onend = () => { isRecording = false; document.getElementById('mic-btn').classList.remove('listening'); };
-            
-            recognition.onresult = (e) => { 
-                const text = e.results[0][0].transcript; 
-                addChat(text, 'user'); 
-                askGroqAI(text); 
-            };
-            
-            // XATOLIKNI EKRANGA CHIQARISH
-            recognition.onerror = (e) => { 
-                let msg = "Error: " + e.error;
-                if(e.error === 'not-allowed') msg = "Mic permission denied. Allow in settings.";
-                if(e.error === 'no-speech') msg = "No speech detected.";
-                
-                document.getElementById('ai-status').innerText = msg;
-                alert(msg); // <--- TELEFONDA XATONI KO'RSATADI
-            };
-        } else {
-            // Agar browserda umuman Speech API bo'lmasa
-            alert("Sizning brauzeringiz yoki Telegram versiyangiz ovozli yozishni qo'llab-quvvatlamaydi. Iltimos, Chromeda oching.");
-        }
-
-        function toggleMic() {
-            if (!recognition) { alert("Mic not supported."); return; }
-            try {
-                isRecording ? recognition.stop() : recognition.start();
-            } catch (err) {
-                alert("Start Error: " + err.message);
-            }
+        // --- 2. LOGGING (Telefonda xatoni ko'rish uchun) ---
+        function log(msg) {
+            console.log(msg);
+            const dbg = document.getElementById('debug-console');
+            dbg.style.display = 'block';
+            dbg.innerText = "LOG: " + msg;
+            setTimeout(() => { dbg.style.display = 'none'; }, 5000);
         }
 
         function addChat(text, sender) {
             const box = document.getElementById('chat-box');
-            box.innerHTML += `<div class="chat-bubble chat-${sender}">${text}</div>`;
+            box.innerHTML += `<div class="bubble ${sender}">${text}</div>`;
             box.scrollTop = box.scrollHeight;
         }
 
-        function speak(text) {
-            if ('speechSynthesis' in window) {
-                const u = new SpeechSynthesisUtterance(text);
-                u.lang = 'en-US'; u.rate = 1;
-                window.speechSynthesis.speak(u);
+        // --- 3. AUDIO (MIC) LOGIC ---
+        let recognition;
+        let isRecording = false;
+
+        // Brauzer turini tekshirish
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false; // Telefonda false bo'lgani yaxshi
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('mic-btn').classList.add('listening');
+                log("Mic started listening...");
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                document.getElementById('mic-btn').classList.remove('listening');
+                log("Mic stopped.");
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                log("Heard: " + transcript);
+                addChat(transcript, 'user');
+                askAI(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                let err = event.error;
+                log("Mic Error: " + err);
+                if(err === 'not-allowed') alert("Iltimos, Brauzer sozlamalaridan Mikrofonga ruxsat bering!");
+                if(err === 'no-speech') alert("Hech narsa eshitilmadi. Qattiqroq gapiring.");
+            };
+        } else {
+            alert("⚠️ Diqqat: Sizning telefoningizda ovozli yozish ishlamaydi (iPhone yoki eski Android). Iltimos, yozma chatdan foydalaning.");
+        }
+
+        function toggleMic() {
+            if (!recognition) { 
+                alert("Kechirasiz, bu telefonda mikrofon ishlamaydi. Iltimos, yozib gaplashing."); 
+                return; 
+            }
+            if (isRecording) recognition.stop();
+            else {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    log("Start Error: " + e.message);
+                }
             }
         }
 
-        async function askGroqAI(text) {
-            if(!text || text.trim() === "") return;
-            document.getElementById('ai-status').innerText = "Thinking...";
-            
+        // --- 4. TEXT INPUT LOGIC ---
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if (text) {
+                addChat(text, 'user');
+                askAI(text);
+                input.value = "";
+            }
+        }
+
+        // --- 5. AI BRAIN (GROQ) ---
+        async function askAI(text) {
+            log("Sending to AI...");
             try {
                 const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
                     model: "llama-3.3-70b-versatile",
@@ -233,113 +200,26 @@
                     ]
                 }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
 
-                const aiText = res.data.choices[0].message.content;
-                addChat(aiText, 'ai');
-                document.getElementById('ai-status').innerText = "Tap to Speak";
-                speak(aiText);
+                const aiResponse = res.data.choices[0].message.content;
+                addChat(aiResponse, 'ai');
+                speak(aiResponse); // Javobni o'qib berish
 
-            } catch (err) {
-                const errMsg = err.response?.data?.error?.message || err.message;
-                addChat("Error: " + errMsg, 'ai');
-                document.getElementById('ai-status').innerText = "Error";
-                alert("AI Error: " + errMsg);
+            } catch (error) {
+                log("AI Error: " + error.message);
+                addChat("Error: " + error.message, 'ai');
             }
         }
 
-        // --- APP LOGIC ---
-        let peer, myStream, currentCall, waitingId;
-        const myId = "u_" + Math.floor(Math.random() * 1000000);
-        
-        async function enterApp() {
-            try {
-                // Telefonda mic ruxsatini tekshirish
-                myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                document.getElementById('start-overlay').classList.add('hidden');
-                initPeer(); loadStats(); renderCalendar(); goOnline();
-                if(user.id === ADMIN_ID) document.getElementById('nav-admin').classList.remove('hidden');
-            } catch(e) { 
-                alert("Mikrofon xatosi: " + e.message + "\n\nIltimos, Telegram sozlamalaridan mikrofonga ruxsat bering yoki Chrome brauzerida oching."); 
-                // Kirishga ruxsat beramiz, lekin mic ishlamaydi
-                document.getElementById('start-overlay').classList.add('hidden');
+        // --- 6. TEXT TO SPEECH (JAVOBNI O'QISH) ---
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                // Telefonda ovoz chiqishi uchun avvalgi ovozlarni to'xtatamiz
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'en-US';
+                u.rate = 1;
+                window.speechSynthesis.speak(u);
             }
-        }
-
-        function initPeer() {
-            peer = new Peer(myId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
-            peer.on('call', call => {
-                if(myStream) { call.answer(myStream); setupCall(call, "Partner"); }
-            });
-        }
-
-        async function startRandomCall() {
-            if(!myStream) { alert("Mikrofon ruxsati yo'q!"); return; }
-            document.getElementById('search-status').classList.remove('hidden');
-            const room = db.collection('waiting_room');
-            const old = await room.where('time', '<', Date.now()-60000).get(); old.forEach(d=>d.ref.delete());
-            
-            const snap = await room.limit(10).get();
-            let match = null;
-            snap.forEach(d => { if(d.data().peerId !== myId) match = {id:d.id, ...d.data()}; });
-
-            if(match) {
-                await room.doc(match.id).delete();
-                const call = peer.call(match.peerId, myStream, {metadata:{name:user.first_name}});
-                setupCall(call, match.name);
-            } else {
-                const d = await room.add({peerId: myId, name: user.first_name, time: Date.now()});
-                waitingId = d.id;
-            }
-        }
-
-        function cancelSearch() {
-            if(waitingId) db.collection('waiting_room').doc(waitingId).delete();
-            document.getElementById('search-status').classList.add('hidden');
-        }
-
-        function setupCall(call, name) {
-            currentCall = call;
-            document.getElementById('call-overlay').classList.remove('hidden');
-            document.getElementById('call-partner').innerText = name;
-            call.on('stream', s => { document.getElementById('remote-audio').srcObject = s; });
-            call.on('close', endCall);
-        }
-
-        function endCall() {
-            if(currentCall) currentCall.close();
-            document.getElementById('call-overlay').classList.add('hidden');
-            if(waitingId) db.collection('waiting_room').doc(waitingId).delete();
-        }
-
-        function switchTab(t) {
-            document.querySelectorAll('.page').forEach(e => e.classList.add('hidden'));
-            document.getElementById(t + '-page').classList.remove('hidden');
-            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-        }
-
-        function goOnline() {
-            db.collection('online').doc(String(user.id)).set({name: user.first_name, peerId: myId, last: Date.now()});
-            setInterval(() => db.collection('online').doc(String(user.id)).update({last: Date.now()}), 30000);
-        }
-
-        function loadStats() {
-            db.collection('users').doc(String(user.id)).get().then(d => {
-                if(d.exists) document.getElementById('streak-disp').innerText = d.data().streak || 0;
-            });
-        }
-        
-        function renderCalendar() {
-            const g = document.getElementById('cal-grid'); const n = new Date();
-            document.getElementById('current-month').innerText = n.toLocaleString('default', {month:'long'});
-            for(let i=1; i<=31; i++) {
-                g.innerHTML += `<div class="day ${i===n.getDate()?'today':''}">${i}</div>`;
-            }
-        }
-        
-        function invite() { tg.openTelegramLink("https://t.me/share/url?url=https://t.me/spk_tutor_bot"); }
-        async function loadAdminStats() { 
-            const u = await db.collection('users').get();
-            document.getElementById('adm-users').innerText = u.size;
         }
     </script>
 </body>
