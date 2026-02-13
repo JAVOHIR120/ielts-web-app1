@@ -18,17 +18,20 @@
         /* --- GLOBAL --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
         :root {
-            --bg: #0f0c29;
+            --bg-dark: #0f0c29;
+            --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #2f3640 100%);
+            --glass: rgba(255, 255, 255, 0.05);
             --primary: #00a8ff;
             --accent: #00cec9;
             --text: #ffffff;
-            --danger: #ff4757;
-            --success: #2ed573;
+            --danger: #e84118;
+            --success: #4cd137;
             --admin: #e17055;
+            --card-radius: 16px;
         }
 
         body {
-            background: linear-gradient(135deg, #0f0c29 0%, #2f3640 100%);
+            background: var(--bg-gradient);
             color: var(--text);
             font-family: 'Poppins', sans-serif;
             margin: 0; padding: 0;
@@ -37,10 +40,9 @@
             display: flex; justify-content: center;
         }
 
-        /* --- RESPONSIVE CONTAINER --- */
         #app-container {
             width: 100%; height: 100%;
-            max-width: 500px; /* PC da mobil ko'rinish */
+            max-width: 500px;
             background: rgba(0,0,0,0.2);
             position: relative;
             display: flex; flex-direction: column;
@@ -53,46 +55,50 @@
 
         /* --- UI COMPONENTS --- */
         .glass-card {
-            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);
+            background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--card-radius); padding: 15px; margin-bottom: 15px;
+            backdrop-filter: blur(10px);
         }
 
-        /* Selection Cards */
-        .section-title { font-size: 12px; color: var(--primary); font-weight: 700; margin: 15px 0 5px 5px; text-transform: uppercase; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        
+        .section-title { font-size: 12px; color: var(--primary); font-weight: 700; margin: 15px 0 5px 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
         .select-card {
-            background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px; text-align: center;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px; padding: 12px; text-align: center;
             cursor: pointer; transition: 0.2s; border: 2px solid transparent;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-size: 13px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 13px;
         }
         .select-card:hover { background: rgba(255,255,255,0.15); }
-        .select-card.active { background: rgba(0, 168, 255, 0.2); border-color: var(--primary); }
-        .emoji-icon { font-size: 20px; }
+        .select-card.active { background: rgba(0, 168, 255, 0.2); border-color: var(--primary); box-shadow: 0 0 10px rgba(0, 168, 255, 0.2); }
+        .emoji-icon { font-size: 20px; margin-bottom: 5px; }
 
-        /* Buttons */
         .btn-main {
             background: var(--primary); color: white; border: none; padding: 16px; width: 100%;
             border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 168, 255, 0.3); margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(0, 168, 255, 0.3); margin-top: 10px; transition: transform 0.1s;
         }
         .btn-main:active { transform: scale(0.98); }
         .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; margin-top: 10px; }
         
-        /* Direct Call User Card */
+        /* Direct Call User Row */
         .user-row { display: flex; justify-content: space-between; align-items: center; }
         .user-info { display: flex; align-items: center; gap: 10px; }
         .user-avatar { width: 35px; height: 35px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .btn-call-small { background: var(--success); color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 14px; }
 
-        /* --- MODALS & CALL UI --- */
+        /* --- MODALS --- */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 12, 41, 0.95); z-index: 5000;
+            background: rgba(15, 12, 41, 0.98); z-index: 5000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px;
+            overflow-y: auto; /* Allow scrolling if content is tall */
         }
-
+        
+        /* --- CALL UI --- */
         .call-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(180deg, #130f40 0%, #000 100%);
@@ -125,7 +131,7 @@
         /* Animations */
         @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes radar { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
-        .radar-box { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
+        .radar-box { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
         .radar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; animation: radar 2s infinite linear; }
         .radar-ring:nth-child(2) { animation-delay: 0.5s; }
 
@@ -140,8 +146,11 @@
         .btn-admin { background: rgba(225, 112, 85, 0.2); color: var(--admin); border: 1px solid var(--admin); padding: 8px; width: 100%; margin-top: 5px; border-radius: 8px; cursor: pointer; }
         
         /* Persona Option */
-        .persona-option { display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 2px solid transparent; text-align: left; }
+        .persona-option { display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 2px solid transparent; text-align: left; width: 100%; }
         .persona-option.active { border-color: var(--primary); background: rgba(0, 168, 255, 0.1); }
+        
+        /* Config Modal Specifics */
+        .config-section { width: 100%; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -152,34 +161,63 @@
         <div style="text-align:center;">
             <div style="font-size: 70px; margin-bottom: 20px;">👋</div>
             <h1>Speaking Tutor</h1>
-            <p style="opacity:0.6; margin-bottom: 30px;">Practice IELTS Speaking</p>
+            <p style="opacity:0.6; margin-bottom: 30px;">Professional IELTS Practice</p>
             <button class="btn-main" style="width:200px" onclick="enterApp()">START</button>
         </div>
     </div>
 
-    <div id="ai-modal" class="modal-overlay hidden">
-        <div class="glass-card" style="width:90%; text-align:center;">
-            <h2>AI Personality</h2>
-            <p style="opacity:0.6; font-size:13px; margin-bottom:20px;">Choose your examiner's vibe</p>
-            
+    <div id="setup-modal" class="modal-overlay hidden">
+        <h2 style="margin-bottom:20px;">Setup Call</h2>
+        
+        <div class="glass-card config-section">
+            <div class="section-title">I AM:</div>
+            <div class="grid-2">
+                <div class="select-card active" id="my-male" onclick="setMyProfile('gender','male')"><div class="emoji-icon">👨</div>Male</div>
+                <div class="select-card" id="my-female" onclick="setMyProfile('gender','female')"><div class="emoji-icon">👩</div>Female</div>
+            </div>
+            <div class="grid-3" style="margin-top:10px;">
+                <div class="select-card" id="my-beg" onclick="setMyProfile('level','beg')">Beginner</div>
+                <div class="select-card active" id="my-int" onclick="setMyProfile('level','int')">Interm.</div>
+                <div class="select-card" id="my-adv" onclick="setMyProfile('level','adv')">Advanced</div>
+            </div>
+        </div>
+
+        <div class="glass-card config-section">
+            <div class="section-title">I WANT TO SPEAK WITH:</div>
+            <div class="grid-3">
+                <div class="select-card active" id="g-any" onclick="setSearchPref('gender','any')"><div class="emoji-icon">🌍</div>Any</div>
+                <div class="select-card" id="g-male" onclick="setSearchPref('gender','male')"><div class="emoji-icon">👨</div>Male</div>
+                <div class="select-card" id="g-female" onclick="setSearchPref('gender','female')"><div class="emoji-icon">👩</div>Female</div>
+            </div>
+            <div style="margin-top:10px;"></div>
+            <div class="grid-3">
+                <div class="select-card active" id="l-any" onclick="setSearchPref('level','any')">Any Lvl</div>
+                <div class="select-card" id="l-same" onclick="setSearchPref('level','same')">My Lvl</div>
+                <div class="select-card" id="g-ai" onclick="setSearchPref('gender', 'ai')" style="border-color:var(--accent); background:rgba(0, 206, 201, 0.1);">
+                    <div class="emoji-icon">🤖</div>AI Bot
+                </div>
+            </div>
+        </div>
+
+        <div id="ai-persona-section" class="glass-card config-section hidden">
+            <div class="section-title">AI PERSONALITY:</div>
             <div class="persona-option" id="p-savage" onclick="selectPersona('savage')">
-                <div style="font-size:30px;">😈</div>
-                <div><b>Savage Mode</b><br><span style="font-size:11px; opacity:0.6">Strict, brutal feedback.</span></div>
+                <div style="font-size:24px;">😈</div>
+                <div><b>Savage</b><br><span style="font-size:10px; opacity:0.6">Strict & Brutal</span></div>
             </div>
-
             <div class="persona-option active" id="p-polite" onclick="selectPersona('polite')">
-                <div style="font-size:30px;">😇</div>
-                <div><b>Polite Mode</b><br><span style="font-size:11px; opacity:0.6">Kind, encouraging helper.</span></div>
+                <div style="font-size:24px;">😇</div>
+                <div><b>Polite</b><br><span style="font-size:10px; opacity:0.6">Kind & Helpful</span></div>
             </div>
+        </div>
 
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn-secondary" onclick="document.getElementById('ai-modal').classList.add('hidden')">Cancel</button>
-                <button class="btn-main" style="margin-top:0;" onclick="startAiCall()">Start Call</button>
-            </div>
+        <div style="width:100%; display:flex; gap:10px;">
+            <button class="btn-secondary" onclick="closeSetupModal()">Cancel</button>
+            <button class="btn-main" style="margin-top:10px;" onclick="confirmSetup()">START CALL</button>
         </div>
     </div>
 
-    <div id="search-overlay" class="modal-overlay hidden" style="background:#0f0c29;">
+    <div id="search-overlay" class="modal-overlay hidden" style="background:var(--bg-dark);">
         <div class="radar-box">
             <div class="radar-ring"></div><div class="radar-ring"></div>
             <div style="font-size:50px;">🌍</div>
@@ -202,13 +240,13 @@
 
         <div style="width:100%; text-align:center;">
             <div class="glass-card" style="padding:10px;">
-                <div style="font-size:10px; color:var(--accent); font-weight:bold;">TOPIC</div>
+                <div style="font-size:10px; color:var(--accent); font-weight:bold;">CURRENT TOPIC</div>
                 <div id="call-topic" style="font-size:14px; margin-top:3px;">Describe your hometown</div>
             </div>
             <div id="ai-subtitle" style="font-size:12px; opacity:0.7; height:40px; overflow:hidden; font-style:italic;"></div>
         </div>
 
-        <div class="controls-row">
+        <div style="display:flex; gap:20px;">
             <button class="control-btn btn-mic-call" id="btn-mic" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
             <button class="control-btn btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
         </div>
@@ -252,41 +290,15 @@
         </section>
 
         <section id="speaking-page" class="hidden">
-            <h2 style="text-align:center; margin-bottom:5px;">Match Settings</h2>
-            <p style="text-align:center; opacity:0.6; font-size:12px; margin-bottom:20px;">Configure your profile & target</p>
-
-            <div class="glass-card">
-                <div class="section-title">MY PROFILE (I AM):</div>
-                <div class="grid-2">
-                    <div class="select-card active" id="my-male" onclick="setMyProfile('gender','male')"><div class="emoji-icon">👨</div>Male</div>
-                    <div class="select-card" id="my-female" onclick="setMyProfile('gender','female')"><div class="emoji-icon">👩</div>Female</div>
-                </div>
-                <div class="grid-3">
-                    <div class="select-card" id="my-beg" onclick="setMyProfile('level','beg')">Beginner</div>
-                    <div class="select-card active" id="my-int" onclick="setMyProfile('level','int')">Interm.</div>
-                    <div class="select-card" id="my-adv" onclick="setMyProfile('level','adv')">Advanced</div>
-                </div>
+            <div class="glass-card" style="text-align:center; padding: 40px 20px;">
+                <div style="font-size:60px; margin-bottom:20px;">🎙️</div>
+                <h2 style="margin-bottom:10px;">Practice Speaking</h2>
+                <p style="opacity:0.6; font-size:14px; margin-bottom:30px;">Find a random partner or practice with AI instantly.</p>
+                
+                <button class="btn-main" style="padding:20px; font-size:18px;" onclick="openSetupModal()">
+                    <i class="fas fa-search"></i> SEARCH PARTNER
+                </button>
             </div>
-
-            <div class="glass-card">
-                <div class="section-title">LOOKING FOR (PARTNER):</div>
-                <div class="grid-3">
-                    <div class="select-card active" id="g-any" onclick="setSearchPref('gender','any')"><div class="emoji-icon">🌍</div>Any</div>
-                    <div class="select-card" id="g-male" onclick="setSearchPref('gender','male')"><div class="emoji-icon">👨</div>Male</div>
-                    <div class="select-card" id="g-female" onclick="setSearchPref('gender','female')"><div class="emoji-icon">👩</div>Female</div>
-                </div>
-                <div class="grid-3" style="margin-top:10px;">
-                    <div class="select-card active" id="l-any" onclick="setSearchPref('level','any')">Any Level</div>
-                    <div class="select-card" id="l-same" onclick="setSearchPref('level','same')">My Level</div>
-                    <div class="select-card" id="g-ai" onclick="openAiSetup()" style="border-color:var(--accent); background:rgba(0, 206, 201, 0.1);">
-                        <div class="emoji-icon">🤖</div>AI Bot
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn-main" onclick="startMatching()">
-                <i class="fas fa-search"></i> START SEARCH
-            </button>
 
             <h3 style="font-size:14px; margin-top:20px; opacity:0.7;">Recent History</h3>
             <div id="history-list"></div>
@@ -349,6 +361,23 @@
     document.getElementById('u-name').innerText = user.first_name;
 
     // --- UI LOGIC (SELECTION) ---
+    function openSetupModal() {
+        document.getElementById('setup-modal').classList.remove('hidden');
+    }
+
+    function closeSetupModal() {
+        document.getElementById('setup-modal').classList.add('hidden');
+    }
+
+    function confirmSetup() {
+        closeSetupModal();
+        if (searchPrefs.gender === 'ai') {
+            startAiCall();
+        } else {
+            startRandomCall();
+        }
+    }
+
     function setMyProfile(type, val) {
         myProfile[type] = val;
         if(type === 'gender') {
@@ -362,9 +391,17 @@
 
     function setSearchPref(type, val) {
         searchPrefs[type] = val;
-        if(type === 'gender') {
+        // Handle AI selection specific logic
+        if (type === 'gender' && val === 'ai') {
+            ['g-any','g-male','g-female'].forEach(id => document.getElementById(id).classList.remove('active'));
+            document.getElementById('g-ai').classList.add('active');
+            // Show AI Persona options
+            document.getElementById('ai-persona-section').classList.remove('hidden');
+        } else if (type === 'gender') {
             ['g-any','g-male','g-female','g-ai'].forEach(id => document.getElementById(id).classList.remove('active'));
             document.getElementById(`g-${val}`).classList.add('active');
+            // Hide AI Persona options
+            document.getElementById('ai-persona-section').classList.add('hidden');
         } else {
             ['l-any','l-same'].forEach(id => document.getElementById(id).classList.remove('active'));
             document.getElementById(`l-${val}`).classList.add('active');
@@ -376,11 +413,6 @@
         document.getElementById('p-savage').classList.remove('active');
         document.getElementById('p-polite').classList.remove('active');
         document.getElementById(`p-${p}`).classList.add('active');
-    }
-
-    function openAiSetup() {
-        setSearchPref('gender', 'ai');
-        document.getElementById('ai-modal').classList.remove('hidden');
     }
 
     // --- NAVIGATION ---
@@ -395,18 +427,8 @@
         if(t==='admin') loadAdminStats();
     }
 
-    // --- MAIN ACTIONS ---
-    function startMatching() {
-        if(searchPrefs.gender === 'ai') {
-            document.getElementById('ai-modal').classList.remove('hidden');
-        } else {
-            startRandomCall();
-        }
-    }
-
     // --- AI LOGIC ---
     function startAiCall() {
-        document.getElementById('ai-modal').classList.add('hidden');
         isInAiCall = true;
         document.getElementById('call-ui').classList.remove('hidden');
         document.getElementById('call-partner-name').innerText = "AI Tutor (" + (aiPersona==='savage'?'😈':'😇') + ")";
@@ -602,10 +624,8 @@
         try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e) { console.warn("Mic error"); }
         document.getElementById('start-overlay').classList.add('hidden');
         
-        // Go straight to HOME page
         switchTab('home');
 
-        // Init Peer with global ID
         peer = new Peer(myId, { config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } });
         peer.on('call', call => {
             cancelSearch();
@@ -633,7 +653,7 @@
             let h = "";
             s.forEach(doc => {
                 const d = doc.data();
-                if(Date.now() - d.last > 60000) return; // Skip inactive
+                if(Date.now() - d.last > 60000) return; 
                 if(d.peerId !== myId) {
                     h += `
                     <div class="glass-card user-row">
